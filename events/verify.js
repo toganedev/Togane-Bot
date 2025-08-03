@@ -1,85 +1,105 @@
-import { ModalBuilder, TextInputBuilder, ActionRowBuilder, TextInputStyle, EmbedBuilder } from 'discord.js'
+import {
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  ActionRowBuilder,
+  EmbedBuilder,
+} from 'discord.js'
 
-function makeProblem() {
-  const ops = ['+', '-', '×']
-  let a = Math.floor(Math.random() * 9) + 1
-  let b = Math.floor(Math.random() * 9) + 1
-  const op = ops[Math.floor(Math.random() * ops.length)]
-  if (op === '-' && a < b) [a, b] = [b, a]
-  const answer = op === '+' ? a + b : op === '-' ? a - b : a * b
-  return { question: `${a} ${op} ${b}`, answer }
+function generateMathProblem() {
+  const a = Math.floor(Math.random() * 9) + 1
+  const b = Math.floor(Math.random() * 9) + 1
+  const op = ['+', '-', '*'][Math.floor(Math.random() * 3)]
+  if (op === '-' && a < b) return generateMathProblem()
+  return { question: `${a} ${op} ${b}`, answer: eval(`${a}${op}${b}`) }
 }
 
-export default async function handleVerify(interaction, client) {
-  if (!interaction.isButton() && !interaction.isModalSubmit()) return
-  const [ , method ] = interaction.customId.split('-')
+export default {
+  name: 'interactionCreate',
+  async execute(interaction) {
+    if (interaction.isButton()) {
+      const [prefix, , method, roleId] = interaction.customId.split('-')
+      if (prefix !== 'verify') return
 
-  const orig = interaction.message.interaction
-  const role = orig?.options.getRole('role')
-  const user = interaction.member
-
-  if (interaction.isButton()) {
-    if (method === 'button') {
-      if (role && user.roles.cache.has(role.id)) {
-        const embed = new EmbedBuilder()
-          .setTitle('⚠️ すでに役職を持っています')
-          .setDescription(`\`\`\`\n${user.user.tag} はすでに <@&${role.id}> を持っています\n\`\`\``)
-          .setColor('Orange')
-          .setThumbnail(user.user.displayAvatarURL())
-
-        await interaction.reply({ embeds: [embed], ephemeral: true })
-        return
+      const member = interaction.member
+      const role = interaction.guild.roles.cache.get(roleId)
+      if (!role) {
+        return interaction.reply({
+          content: '❌ ロールが見つかりませんでした。',
+          ephemeral: true
+        })
       }
-      if (role) await user.roles.add(role).catch(() => {})
-      const embed = new EmbedBuilder()
-        .setTitle('✅ ロール付与完了')
-        .setDescription(`\`\`\`\n${user.user.tag} に <@&${role?.id}> を付与しました\n\`\`\``)
-        .setColor('Green')
-        .setThumbnail(user.user.displayAvatarURL())
 
-      await interaction.reply({ embeds: [embed], ephemeral: true })
+      if (member.roles.cache.has(roleId)) {
+        const embed = new EmbedBuilder()
+          .setTitle('🎉 すでに認証済みです')
+          .setDescription(`あなたはすでにロール \`\`\`${role.name}\`\`\` を持っています。`)
+          .setColor('Grey')
+          .setThumbnail(member.user.displayAvatarURL({ size: 128 }))
+
+        return interaction.reply({ embeds: [embed], ephemeral: true })
+      }
+
+      if (method === 'button') {
+        try {
+          await member.roles.add(role)
+          const embed = new EmbedBuilder()
+            .setTitle('✅ 認証完了！')
+            .setDescription(`ロール \`\`\`${role.name}\`\`\` を付与しました。`)
+            .setColor('Green')
+            .setThumbnail(member.user.displayAvatarURL({ size: 128 }))
+          await interaction.reply({ embeds: [embed], ephemeral: true })
+        } catch (err) {
+          console.error(err)
+          return interaction.reply({ content: '❌ ロール付与に失敗しました。', ephemeral: true })
+        }
+      }
+
+      if (method === 'calc') {
+        const { question, answer } = generateMathProblem()
+        const modal = new ModalBuilder()
+          .setTitle('🧠 認証クイズ')
+          .setCustomId(`verify-modal-${roleId}-${answer}`)
+
+        const input = new TextInputBuilder()
+          .setCustomId('math-answer')
+          .setLabel(`問題: ${question} = ?`)
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+
+        modal.addComponents(new ActionRowBuilder().addComponents(input))
+        await interaction.showModal(modal)
+      }
     }
 
-    if (method === 'calc') {
-      const { question, answer } = makeProblem()
-      const modal = new ModalBuilder()
-        .setCustomId(`verify-calc-${answer}`)
-        .setTitle('🧩 計算認証')
-      const input = new TextInputBuilder()
-        .setCustomId('answer')
-        .setLabel(question)
-        .setStyle(TextInputStyle.Short)
-        .setRequired(true)
-      modal.addComponents(new ActionRowBuilder().addComponents(input))
-      await interaction.showModal(modal)
-    }
-  }
+    if (interaction.isModalSubmit()) {
+      const [prefix, , roleId, correctAnswer] = interaction.customId.split('-')
+      if (prefix !== 'verify') return
 
-  if (interaction.isModalSubmit()) {
-    if (!interaction.customId.startsWith('verify-calc-')) return
-    const correct = parseInt(interaction.customId.split('-')[2], 10)
-    const given = parseInt(interaction.fields.getTextInputValue('answer'), 10)
-    if (given === correct) {
-      if (role && !user.roles.cache.has(role.id)) {
-        await user.roles.add(role).catch(() => {})
+      const input = interaction.fields.getTextInputValue('math-answer')
+      const role = interaction.guild.roles.cache.get(roleId)
+      const member = interaction.member
+
+      if (parseInt(input) === parseInt(correctAnswer)) {
+        if (!member.roles.cache.has(roleId)) {
+          await member.roles.add(role)
+        }
+
         const embed = new EmbedBuilder()
           .setTitle('✅ 認証成功！')
-          .setDescription(`\`\`\`\n正解：${correct}\n${user.user.tag} に <@&${role.id}> を付与しました\n\`\`\``)
+          .setDescription(`正解です！ロール \`\`\`${role.name}\`\`\` を付与しました。`)
           .setColor('Blue')
-          .setThumbnail(user.user.displayAvatarURL())
+          .setThumbnail(member.user.displayAvatarURL({ size: 128 }))
 
-        await interaction.reply({ embeds: [embed], ephemeral: true })
+        return interaction.reply({ embeds: [embed], ephemeral: true })
       } else {
         const embed = new EmbedBuilder()
-          .setTitle('⚠️ 既にロールを持っています')
-          .setDescription(`\`\`\`\n${user.user.tag} は既に <@&${role?.id}> を持っています\n\`\`\``)
-          .setColor('Orange')
-          .setThumbnail(user.user.displayAvatarURL())
+          .setTitle('❌ 不正解')
+          .setDescription(`正解は \`${correctAnswer}\` です。再度お試しください。`)
+          .setColor('Red')
 
-        await interaction.reply({ embeds: [embed], ephemeral: true })
+        return interaction.reply({ embeds: [embed], ephemeral: true })
       }
-    } else {
-      await interaction.reply({ content: '❌ 不正解でした…', ephemeral: true })
     }
   }
 }
