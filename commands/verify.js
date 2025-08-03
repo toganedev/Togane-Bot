@@ -12,7 +12,7 @@ export default {
     .setDescription('認証方式を選んでロールを付与')
     .addStringOption(opt =>
       opt.setName('method')
-        .setDescription('認証方式を選択（必須）')
+        .setDescription('認証方式（必須）')
         .setRequired(true)
         .addChoices(
           { name: '✅ ワンタッチ認証', value: 'button' },
@@ -26,17 +26,17 @@ export default {
     )
     .addStringOption(opt =>
       opt.setName('title')
-        .setDescription('Embedのタイトル（任意）')
+        .setDescription('埋め込みタイトル')
         .setRequired(false)
     )
     .addStringOption(opt =>
       opt.setName('description')
-        .setDescription('Embedの説明文（任意）')
+        .setDescription('埋め込み概要')
         .setRequired(false)
     )
-    .addStringOption(opt =>
+    .addAttachmentOption(opt =>
       opt.setName('image')
-        .setDescription('画像URL（任意）')
+        .setDescription('埋め込み画像（デバイスから選択可）')
         .setRequired(false)
     ),
 
@@ -48,14 +48,16 @@ export default {
       interaction.options.getString('description') ||
       `以下の方法で認証してください。\n付与されるロール: \`\`\`${role.name}\`\`\``
 
-    const image = interaction.options.getString('image')
+    const attachment = interaction.options.getAttachment('image')
 
     const embed = new EmbedBuilder()
       .setTitle(title)
       .setDescription(description)
       .setColor(method === 'calc' ? 0x9b59b6 : 0x2ecc71)
 
-    if (image) embed.setImage(image)
+    if (attachment?.contentType?.startsWith('image/')) {
+      embed.setImage(attachment.url)
+    }
 
     const verifyBtn = new ButtonBuilder()
       .setCustomId(`verify-btn-${method}-${role.id}`)
@@ -67,7 +69,7 @@ export default {
     await interaction.reply({
       embeds: [embed],
       components: [row],
-      ephemeral: false // 全体に表示
+      ephemeral: false
     })
   }
 }
