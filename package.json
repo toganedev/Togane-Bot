@@ -1,0 +1,46 @@
+{
+  "name": "togane-bot",
+  "version": "1.1.0",
+  "description": "A powerful Discord bot using discord.js v14, hosted on Render",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "postinstall": "echo Postinstall script executed"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "discord.js",
+    "togane",
+    "render"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "@discordjs/rest": "^1.6.0",
+    "@discordjs/voice": "^0.15.0",
+    "@discordjs/builders": "^1.6.0",
+    "@discordjs/formatters": "^1.0.0",
+    "canvacord": "^6.5.0",
+    "dotenv": "^16.4.5",
+    "chalk": "^5.3.0",
+    "figlet": "^1.5.2",
+    "node-fetch": "^3.3.2",
+    "axios": "^1.6.8",
+    "express": "^4.19.2",
+    "quick.db": "^9.0.6",
+    "mongoose": "^8.4.3",
+    "moment": "^2.30.1",
+    "dayjs": "^1.11.10",
+    "ms": "^2.1.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  }
+}
