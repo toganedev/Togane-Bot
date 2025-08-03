@@ -7,13 +7,6 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// フォントを登録
-Canvas.registerFont(
-  path.join(__dirname, '../assets/fonts/NotoSansJP-VariableFont_wght.ttf'),
-  { family: 'NotoSansJP' }
-)
-
-
 const welcomeFile = path.join(__dirname, '../data/welcomeChannels.json')
 
 export default {
@@ -31,21 +24,13 @@ export default {
     const canvas = Canvas.createCanvas(700, 250)
     const ctx = canvas.getContext('2d')
 
-    // 背景白塗り
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    // テンプレ背景画像を読み込んで描画
+    const templatePath = path.join(__dirname, '../assets/welcome-template.png')
+    const background = await Canvas.loadImage(templatePath)
+    ctx.drawImage(background, 0, 0, canvas.width, canvas.height)
 
-    // テキスト描画
-    ctx.font = '32px "NotoSansJP"'
-    ctx.fillStyle = '#333'
-    ctx.fillText(`Welcome, ${member.user.tag}!`, 260, 70)
-
-    ctx.font = '20px "NotoSansJP"'
-    ctx.fillStyle = '#666'
-    ctx.fillText(`User ID: ${member.id}`, 260, 120)
-    ctx.fillText(`Guild: ${member.guild.name}`, 260, 150)
-
-    // アバター描画
+    // アバター描画（丸くクリップ）
+    ctx.save()
     ctx.beginPath()
     ctx.arc(125, 125, 100, 0, Math.PI * 2, true)
     ctx.closePath()
@@ -55,7 +40,18 @@ export default {
       member.user.displayAvatarURL({ extension: 'jpg', size: 256 })
     )
     ctx.drawImage(avatar, 25, 25, 200, 200)
+    ctx.restore()
 
+    // テキスト描画（デフォルトフォント）
+    ctx.fillStyle = '#333'
+    ctx.font = '32px sans-serif'
+    ctx.fillText(`Welcome, ${member.user.tag}`, 260, 70)
+
+    ctx.font = '20px sans-serif'
+    ctx.fillText(`User ID: ${member.id}`, 260, 120)
+    ctx.fillText(`Guild: ${member.guild.name}`, 260, 150)
+
+    // Discord に送信
     const attachment = new AttachmentBuilder(canvas.toBuffer('image/png'), {
       name: 'welcome-image.png'
     })
