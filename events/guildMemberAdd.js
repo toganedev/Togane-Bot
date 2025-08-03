@@ -8,9 +8,11 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 // フォントを登録
-Canvas.registerFont(path.join(__dirname, '../assets/fonts/NotoSansJP-Regular.ttf'), {
-  family: 'NotoSansJP'
-})
+Canvas.registerFont(
+  path.join(__dirname, '../assets/fonts/NotoSansJP-VariableFont_wght.ttf'),
+  { family: 'NotoSansJP' }
+)
+
 
 const welcomeFile = path.join(__dirname, '../data/welcomeChannels.json')
 
