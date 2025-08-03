@@ -3,20 +3,13 @@ import {
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle,
-  Role,
-  StringSelectMenuBuilder,
-  StringSelectMenuOptionBuilder
+  ButtonStyle
 } from 'discord.js'
 
 export default {
   data: new SlashCommandBuilder()
     .setName('verify')
     .setDescription('認証方式を選んでロールを付与')
-    .addRoleOption(opt => opt.setName('role').setDescription('付与するロール').setRequired(false))
-    .addStringOption(opt => opt.setName('title').setDescription('埋め込みタイトル').setRequired(false))
-    .addStringOption(opt => opt.setName('description').setDescription('埋め込み概要').setRequired(false))
-    .addStringOption(opt => opt.setName('image').setDescription('埋め込み画像URL').setRequired(false))
     .addStringOption(opt =>
       opt.setName('method')
         .setDescription('認証方式を選択')
@@ -25,7 +18,11 @@ export default {
           { name: 'ワンタッチ認証', value: 'button' },
           { name: '計算問題認証', value: 'calc' }
         )
-    ),
+    )
+    .addRoleOption(opt => opt.setName('role').setDescription('付与するロール').setRequired(false))
+    .addStringOption(opt => opt.setName('title').setDescription('埋め込みタイトル').setRequired(false))
+    .addStringOption(opt => opt.setName('description').setDescription('埋め込み概要').setRequired(false))
+    .addStringOption(opt => opt.setName('image').setDescription('埋め込み画像URL').setRequired(false)),
 
   async execute(interaction) {
     const role = interaction.options.getRole('role')
