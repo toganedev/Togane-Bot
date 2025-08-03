@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: togane-bot
+    env: node
+    buildCommand: "./build.sh && npm install"
+    startCommand: "npm start"
