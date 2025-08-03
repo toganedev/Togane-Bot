@@ -33,22 +33,28 @@ export default {
     if (subcommand === 'set') {
       const channel = interaction.options.getChannel('channel')
 
-      await interaction.reply({
-        content: '🕐 登録は手動で行うため、反映に少し時間がかかります。',
-        ephemeral: true
-      })
+      await interaction.deferReply({ ephemeral: true })
 
       const codeBlock = `\`\`\`js
 "${interaction.guildId}": "${channel.id}"
 \`\`\``
 
-      const adminUser = await interaction.client.users.fetch('1401421639106957464').catch(() => null)
+      try {
+        const adminUser = await interaction.client.users.fetch('1401421639106957464')
 
-      if (adminUser) {
         await adminUser.send({
-          content: `📥 新しい入室ログ設定が追加されました：\nGuild: ${interaction.guild.name} (${interaction.guildId})\nChannel: <#${channel.id}>`,
+          content: `📥 新しい入室ログ設定が追加されました：\nGuild: ${interaction.guild.name} (${interaction.guildId})\nChannel: <#${channel.id}>`
         })
         await adminUser.send({ content: codeBlock })
+
+        await interaction.editReply({
+          content: '🕐 登録は手動で行うため、反映に少し時間がかかります。'
+        })
+      } catch (err) {
+        console.error(err)
+        await interaction.editReply({
+          content: '⚠️ DMの送信中にエラーが発生しました。'
+        })
       }
     }
 
