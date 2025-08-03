@@ -4,6 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import express from 'express'
 import { fileURLToPath } from 'url'
+import './deploy-commands.js'
 
 dotenv.config()
 
