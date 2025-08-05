@@ -1,49 +1,34 @@
-import fs from 'fs'
-import path from 'path'
-import { EmbedBuilder } from 'discord.js'
+// events/role-panel.js
+import { EmbedBuilder } from 'discord.js';
+import fs from 'fs';
 
-const letters = ['🇦', '🇧', '🇨', '🇩', '🇪']
-const filePath = path.resolve('./data/verify-reactions.json')
+const filePath = './rolepanel.json';
+let panels = fs.existsSync(filePath) ? JSON.parse(fs.readFileSync(filePath, 'utf8')) : [];
 
 export default {
   name: 'messageReactionAdd',
   async execute(reaction, user) {
-    if (user.bot) return
-    if (!reaction.message.guild) return
+    if (user.bot || reaction.message.partial) return;
+    const panel = panels.find(p => p.messageId === reaction.message.id);
+    if (!panel) return;
 
-    if (!fs.existsSync(filePath)) return
-    const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+    const emojiIndex = panel.emojis.indexOf(reaction.emoji.name);
+    if (emojiIndex === -1) return;
 
-    const config = data[reaction.message.id]
-    if (!config) return
+    const roleId = panel.roles[emojiIndex];
+    const role = reaction.message.guild.roles.cache.get(roleId);
+    const member = await reaction.message.guild.members.fetch(user.id);
 
-    const index = letters.indexOf(reaction.emoji.name)
-    if (index === -1) return
-
-    const roleId = config.mapping[index]
-    if (!roleId) return
-
-    const member = await reaction.message.guild.members.fetch(user.id).catch(() => null)
-    if (!member) return
-
-    const role = reaction.message.guild.roles.cache.get(roleId)
-    if (!role) return
-
-    // ロール付与 or 削除
-    let action
-    if (member.roles.cache.has(roleId)) {
-      await member.roles.remove(role)
-      action = '削除'
-    } else {
-      await member.roles.add(role)
-      action = '付与'
+    if (!member.roles.cache.has(roleId)) {
+      await member.roles.add(roleId);
+      const embed = new EmbedBuilder()
+        .setColor('Green')
+        .setDescription(`✅ ロール <@&${roleId}> を付与しました。`)
+        .setFooter({ text: user.tag, iconURL: user.displayAvatarURL() });
+      const notify = await reaction.message.channel.send({ content: `<@${user.id}>`, embeds: [embed] });
+      setTimeout(() => notify.delete().catch(() => {}), 5000);
     }
 
-    const embed = new EmbedBuilder()
-      .setTitle(`🎫 ロール${action}`)
-      .setDescription(`ロール \`\`\`${role.name}\`\`\` を${action}しました`)
-      .setColor(action === '付与' ? 'Green' : 'Red')
-
-    member.send({ embeds: [embed] }).catch(() => {})
+    await reaction.users.remove(user.id);
   }
-}
+};
