@@ -1,5 +1,5 @@
 // ======= 必要なモジュールの読み込み =======
-import { Client, GatewayIntentBits, Collection } from 'discord.js';
+import { Client, GatewayIntentBits, Collection, REST, Routes } from 'discord.js';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
@@ -23,26 +23,50 @@ const client = new Client({
   ],
 });
 
-// ======= コマンド管理（任意） =======
 client.commands = new Collection();
 
-// コマンドの読み込み（例：commandsフォルダ内）
+// ======= コマンドの読み込みと登録 =======
 const commandsPath = path.join(__dirname, 'commands');
+const commandData = [];
+
 if (fs.existsSync(commandsPath)) {
   const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+
   for (const file of commandFiles) {
     const filePath = path.join(commandsPath, file);
     const command = (await import(`file://${filePath}`)).default;
+
     if (command?.data?.name && command?.execute) {
       client.commands.set(command.data.name, command);
+      commandData.push(command.data.toJSON());
     }
   }
 }
 
-// ======= イベントの読み込み（任意） =======
+// ======= グローバルコマンドの登録処理 =======
+const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+
+(async () => {
+  try {
+    console.log('🧹 グローバルコマンドの削除...');
+    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: [] });
+
+    console.log('✅ コマンドを再登録中...');
+    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), {
+      body: commandData,
+    });
+
+    console.log('🎉 グローバルコマンド登録完了！');
+  } catch (error) {
+    console.error('❌ コマンド登録エラー:', error);
+  }
+})();
+
+// ======= イベントの読み込み =======
 const eventsPath = path.join(__dirname, 'events');
 if (fs.existsSync(eventsPath)) {
   const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
+
   for (const file of eventFiles) {
     const filePath = path.join(eventsPath, file);
     const event = (await import(`file://${filePath}`)).default;
