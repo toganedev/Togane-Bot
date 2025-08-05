@@ -61,9 +61,10 @@ export default {
     const notifyEmbed = new EmbedBuilder()
       .setTitle('🛠️ リアクションロールパネルを作成しました')
       .setDescription(
-        'このパネルの情報は **togane_dev_92241** によって手動で登録されます。
-反映には **1〜2日** かかる場合があります。
-お急ぎの場合は <@1401421639106957464> まで **DM** をお願いします。'
+        `このパネルの情報は **togane_dev_92241** によって手動で登録されます。
+反映には1~2日かかる場合がございます。
+お急ぎの場合は togane_dev_92241 までDMお願いします。`
+
       )
       .setColor('Yellow')
 
