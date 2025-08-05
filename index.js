@@ -71,7 +71,7 @@ if (fs.existsSync(eventsPath)) {
     const filePath = path.join(eventsPath, file);
     const event = (await import(`file://${filePath}`)).default;
     if (event?.name && typeof event.execute === 'function') {
-      client[event.once ? 'once' : 'on'](event.name, (...args) => event.execute(...args));
+      client[event.once ? 'once' : 'on'](event.name, (...args) => event.execute(...args, client)); // ← 修正済み
     }
   }
 }
