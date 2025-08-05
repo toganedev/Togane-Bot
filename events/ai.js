@@ -1,5 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/genai'; // パッケージ名を変更
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
@@ -16,7 +16,10 @@ export default {
     try {
       const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
       const result = await model.generateContent(prompt);
-      const text = result.response.text();
+      
+      // レスポンスの取得方法を修正
+      const response = await result.response;
+      const text = response.text();
 
       const embed = new EmbedBuilder()
         .setTitle('💡 AIの回答')
