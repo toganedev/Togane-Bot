@@ -1,4 +1,3 @@
-// events/role-panel.js
 import { EmbedBuilder } from 'discord.js';
 import fs from 'fs';
 
