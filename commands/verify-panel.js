@@ -1,57 +1,66 @@
+// commands/role-panel.js
 import {
   SlashCommandBuilder,
   EmbedBuilder,
-} from 'discord.js'
+  PermissionFlagsBits,
+} from 'discord.js';
+
+const emojiList = ['🇦', '🇧', '🇨', '🇩', '🇪'];
 
 export default {
   data: new SlashCommandBuilder()
-    .setName('verify-panel')
-    .setDescription('リアクションでロールを付与できる認証パネルを作成します')
-    .addRoleOption(opt => opt.setName('a').setDescription('Aで付与するロール').setRequired(true))
-    .addRoleOption(opt => opt.setName('b').setDescription('Bで付与するロール').setRequired(true))
-    .addRoleOption(opt => opt.setName('c').setDescription('Cで付与するロール').setRequired(false))
-    .addRoleOption(opt => opt.setName('d').setDescription('Dで付与するロール').setRequired(false))
-    .addRoleOption(opt => opt.setName('e').setDescription('Eで付与するロール').setRequired(false)),
+    .setName('role-panel')
+    .setDescription('リアクションロールパネルを作成します')
+    .addRoleOption(opt => opt.setName('role_a').setDescription('A: のロール').setRequired(true))
+    .addRoleOption(opt => opt.setName('role_b').setDescription('B: のロール').setRequired(false))
+    .addRoleOption(opt => opt.setName('role_c').setDescription('C: のロール').setRequired(false))
+    .addRoleOption(opt => opt.setName('role_d').setDescription('D: のロール').setRequired(false))
+    .addRoleOption(opt => opt.setName('role_e').setDescription('E: のロール').setRequired(false))
+    .addStringOption(opt => opt.setName('title').setDescription('埋め込みタイトル').setRequired(false))
+    .addStringOption(opt => opt.setName('description').setDescription('埋め込み説明文').setRequired(false))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
 
   async execute(interaction) {
-    const roles = ['a', 'b', 'c', 'd', 'e']
-      .map(k => interaction.options.getRole(k))
-      .filter(Boolean)
+    const roles = [
+      interaction.options.getRole('role_a'),
+      interaction.options.getRole('role_b'),
+      interaction.options.getRole('role_c'),
+      interaction.options.getRole('role_d'),
+      interaction.options.getRole('role_e'),
+    ].filter(Boolean);
 
-    const letters = ['🇦', '🇧', '🇨', '🇩', '🇪']
+    const title = interaction.options.getString('title') || '📌 リアクションでロール付与';
+    const desc = interaction.options.getString('description') || '対応するリアクションを押してロールを取得または削除できます。';
 
     const embed = new EmbedBuilder()
-      .setTitle('🛡️ リアクション認証パネル')
-      .setDescription(
-        roles
-          .map((role, idx) => `${letters[idx]}：\`\`\`${role.name}\`\`\``)
-          .join('\n')
-      )
-      .setColor('Blurple')
+      .setTitle(title)
+      .setDescription(`${desc}\n\n` + roles.map((role, i) => `${emojiList[i]}：\`\`\`${role.name}\`\`\``).join('\n'))
+      .setColor('Blurple');
 
-    const message = await interaction.reply({ embeds: [embed], fetchReply: true })
+    const message = await interaction.channel.send({ embeds: [embed] });
 
-    roles.forEach((_, i) => message.react(letters[i]))
-
-    // 保存用JSONを書き出す処理（events/verify-panel.js で読む）
-    const fs = await import('fs')
-    const path = await import('path')
-    const filePath = path.resolve('./data/verify-reactions.json')
-
-    let data = {}
-    if (fs.existsSync(filePath)) {
-      data = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+    for (let i = 0; i < roles.length; i++) {
+      await message.react(emojiList[i]);
     }
 
-    data[message.id] = {
-      guildId: interaction.guild.id,
-      channelId: interaction.channel.id,
-      mapping: roles.map(role => role.id) // 順番に対応
-    }
+    // データ記録：このメッセージIDにどのリアクションがどのロールかを保存
+    const panelData = {
+      messageId: message.id,
+      guildId: interaction.guildId,
+      channelId: interaction.channelId,
+      roles: roles.map(r => r.id),
+      emojis: emojiList.slice(0, roles.length),
+    };
 
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2))
+    const fs = await import('fs');
+    const filePath = './rolepanel.json';
+    const panels = fs.existsSync(filePath)
+      ? JSON.parse(fs.readFileSync(filePath, 'utf8'))
+      : [];
 
-    // 完了通知
-    await interaction.followUp({ content: '✅ 認証パネルを送信しました！', ephemeral: true })
+    panels.push(panelData);
+    fs.writeFileSync(filePath, JSON.stringify(panels, null, 2));
+
+    await interaction.reply({ content: '✅ リアクションロールパネルを作成しました。', ephemeral: true });
   }
-}
+};
