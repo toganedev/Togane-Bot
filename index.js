@@ -39,8 +39,13 @@ for (const file of eventFiles) {
   }
 }
 
+// 🔧 Render が検出できるように明示的に PORT にバインド
 const app = express()
 app.get('/', (_, res) => res.send('Togane Bot is running'))
-app.listen(process.env.PORT || 3000)
+
+const PORT = process.env.PORT
+app.listen(PORT, () => {
+  console.log(`✅ Express server is listening on port ${PORT}`)
+})
 
 client.login(process.env.TOKEN)
