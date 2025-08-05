@@ -1,4 +1,3 @@
-// commands/ai.js
 import {
   SlashCommandBuilder,
   ModalBuilder,
