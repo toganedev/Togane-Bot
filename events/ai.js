@@ -1,5 +1,6 @@
 import { EmbedBuilder } from 'discord.js';
-import GoogleGenerativeAI from '@google/genai';
+import { GoogleGenerativeAI } from '@google/genai';
+
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
