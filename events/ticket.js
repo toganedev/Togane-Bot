@@ -6,29 +6,26 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  PermissionsBitField,
-  ComponentType
+  PermissionsBitField
 } from 'discord.js';
 
 const activeTicketUsers = new Set();
-const deleteCooldown = new Map();
+const deleteCooldown = new Set();
 const callCooldown = new Map();
-const logChannelId = '1401421639106957464';
+const logReceiverUserId = '1401421639106957464';
 
-module.exports = {
+export default {
   name: Events.InteractionCreate,
   async execute(interaction) {
     if (!interaction.isButton()) return;
 
-    const client = interaction.client;
-
-    // 📌 チケット作成ボタン
-    if (interaction.customId.startsWith('ticket-') && !interaction.customId.startsWith('ticket-close-')) {
+    // チケット作成ボタン
+    if (interaction.customId.startsWith('ticket-') && !interaction.customId.startsWith('ticket-close-') && !interaction.customId.startsWith('ticket-call-')) {
       const userId = interaction.user.id;
-      if (activeTicketUsers.has(userId)) return;
 
+      if (activeTicketUsers.has(userId)) return;
       const existing = interaction.guild.channels.cache.find(c =>
-        c.name.startsWith(`🎫｜`) && c.name.includes(`（${interaction.user.username}）`)
+        c.name.startsWith('🎫｜') && c.name.includes(`（${interaction.user.username}）`)
       );
       if (existing) {
         await interaction.reply({ content: `⚠️ あなたのチケットは既に存在します：<#${existing.id}>`, ephemeral: true });
@@ -37,10 +34,11 @@ module.exports = {
 
       activeTicketUsers.add(userId);
       await interaction.deferUpdate().catch(() => {});
-      const [, , categoryId, roleId] = interaction.customId.split('-');
 
+      const [, , categoryId, roleId] = interaction.customId.split('-');
       const guild = interaction.guild;
-      const category = guild.channels.cache.get(categoryId) || guild.channels.cache.find(c => c.type === ChannelType.GuildCategory);
+      const category = guild.channels.cache.get(categoryId)
+        ?? guild.channels.cache.find(c => c.type === ChannelType.GuildCategory);
       const role = roleId && guild.roles.cache.get(roleId);
       const everyone = guild.roles.everyone;
       const displayName = interaction.member.displayName.replace(/[^\wぁ-んァ-ヶ一-龥()（）ー・\-\_\s]/g, '');
@@ -58,10 +56,9 @@ module.exports = {
       });
 
       const mentions = `<@${interaction.user.id}>` + (role ? ` <@&${role.id}>` : '');
-
       const embed = new EmbedBuilder()
         .setTitle('📩 お問い合わせ')
-        .setDescription('お問い合わせありがとうございます。\n対応には少々お待ちください。')
+        .setDescription('お問い合わせありがとうございます。\n内容送信後、対応をお待ちください。')
         .setColor(0x2ecc71)
         .setTimestamp();
 
@@ -82,18 +79,19 @@ module.exports = {
       return;
     }
 
-    // 📌 管理者呼び出しボタン
+    // 管理者呼び出しボタン
     if (interaction.customId.startsWith('ticket-call-')) {
       const [, , ownerId, roleId] = interaction.customId.split('-');
       const now = Date.now();
       const last = callCooldown.get(ownerId) || 0;
+
       if (now - last < 3600_000) {
         const sec = Math.ceil((3600_000 - (now - last)) / 1000);
         return interaction.reply({ content: `⏳ 次に呼び出せるまであと ${sec}秒`, ephemeral: true });
       }
+
       callCooldown.set(ownerId, now);
       const role = roleId && interaction.guild.roles.cache.get(roleId);
-
       const embed = new EmbedBuilder()
         .setColor(0x00ffff)
         .setDescription(`<@${interaction.user.id}> が管理者を呼び出しました`);
@@ -101,41 +99,43 @@ module.exports = {
       return interaction.reply({ content: '✅ 管理者を呼び出しました。', ephemeral: true });
     }
 
-    // 🗑 チケット削除ボタン
+    // チケット削除ボタン
     if (interaction.customId.startsWith('ticket-close-')) {
       const [, , ownerId, roleId] = interaction.customId.split('-');
       const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
       const hasRole = roleId !== 'null' && interaction.member.roles.cache.has(roleId);
+
       if (!isAdmin && !hasRole) {
-        const embed = new EmbedBuilder().setColor(0xff0000).setDescription('❌ あなたにはチケットを削除する権限がありません。');
+        const embed = new EmbedBuilder()
+          .setColor(0xff0000)
+          .setDescription('❌ あなたにはチケットを削除する権限がありません');
         return interaction.reply({ embeds: [embed], ephemeral: true });
       }
 
       const embedNotify = new EmbedBuilder()
         .setTitle('🗑 チケット削除')
-        .setDescription('このチャンネルは1秒後に削除されます。')
+        .setDescription('このチャンネルは 1秒後 に削除されます。')
         .setColor(0xffcc00)
         .setTimestamp();
       await interaction.channel.send({ embeds: [embedNotify] });
 
-      // ログ送信機能
+      // 全メッセージ取得して .txt 用意
       const messages = [];
-      let lastId;
+      let lastId = undefined;
       while (true) {
-        const fetched = await interaction.channel.messages.fetch({ after: lastId, limit: 100 });
-        if (!fetched.size) break;
-        fetched.sort((a, b) => a.createdTimestamp - b.createdTimestamp)
-          .forEach(m => messages.push(`[${new Date(m.createdTimestamp).toISOString()}] ${m.author.tag}: ${m.content}`));
-        lastId = fetched.last().id;
+        const batch = await interaction.channel.messages.fetch({ after: lastId, limit: 100 });
+        if (!batch.size) break;
+        batch.sort((a, b) => a.createdTimestamp - b.createdTimestamp).forEach(m =>
+          messages.push(`[${new Date(m.createdTimestamp).toISOString()}] ${m.author.tag}: ${m.content}`)
+        );
+        lastId = batch.last().id;
       }
+
       const contentText = messages.join('\n');
-      const txtBuffer = Buffer.from(contentText, 'utf-8');
+      const txtBuffer = Buffer.from(contentText, 'utf‑8');
 
-      const user = interaction.user;
       const guild = interaction.guild;
-
-      const invite = await guild.invites.create(interaction.channel.parentId || guild.systemChannelId, { maxUses: 1, unique: true })
-        .catch(() => null);
+      const invite = await guild.invites.create(interaction.channel.parentId || guild.systemChannelId, { maxUses: 1, unique: true }).catch(() => null);
 
       const embedLog = new EmbedBuilder()
         .setTitle('チケット削除チャンネル')
@@ -144,14 +144,17 @@ module.exports = {
           { name: 'ユーザー', value: `<@${ownerId}>（ID: ${ownerId}）` }
         );
 
-      const dmChan = await user.createDM();
-      const components = invite ? [new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setLabel('サーバー招待リンク').setURL(invite.url).setStyle(ButtonStyle.Link)
-      )] : [];
+      const receiver = await client.users.fetch(logReceiverUserId);
+      const dmChan = await receiver.createDM();
+
+      const components = invite ? [
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setLabel('サーバー招待リンク').setURL(invite.url).setStyle(ButtonStyle.Link)
+        )
+      ] : [];
 
       await dmChan.send({ embeds: [embedLog], files: [{ attachment: txtBuffer, name: `ticket-${ownerId}.txt` }], components });
       setTimeout(() => interaction.channel.delete().catch(() => {}), 1000);
-      return;
     }
   }
 };
