@@ -5,6 +5,8 @@ export default {
     .setName('ticket')
     .setDescription('チケットパネルを作成します（管理者専用）')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+
+    // ✅ 必須オプションを先に
     .addStringOption(option =>
       option.setName('title')
         .setDescription('チケットのタイトル')
@@ -17,6 +19,14 @@ export default {
       option.setName('button_label')
         .setDescription('パネルのボタンラベル')
         .setRequired(true))
+    .addIntegerOption(option =>
+      option.setName('color_code')
+        .setDescription('埋め込みの色番号（1～10）')
+        .setRequired(true)
+        .setMinValue(1)
+        .setMaxValue(10))
+
+    // ✅ 任意オプションは後に
     .addStringOption(option =>
       option.setName('image_url')
         .setDescription('埋め込み画像のURL（省略可）')
@@ -24,7 +34,7 @@ export default {
     .addChannelOption(option =>
       option.setName('category')
         .setDescription('作成先のカテゴリ（省略可）')
-        .addChannelTypes(4) // ChannelType.GuildCategory
+        .addChannelTypes(4)
         .setRequired(false))
     .addRoleOption(option =>
       option.setName('notify_role')
@@ -33,13 +43,7 @@ export default {
     .addUserOption(option =>
       option.setName('target_user')
         .setDescription('チケット作成時にメンションするユーザー（省略可）')
-        .setRequired(false))
-    .addIntegerOption(option =>
-      option.setName('color_code')
-        .setDescription('埋め込みの色番号（1～10）')
-        .setRequired(true)
-        .setMinValue(1)
-        .setMaxValue(10)),
+        .setRequired(false)),
 
   async execute(interaction) {
     if (!interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
