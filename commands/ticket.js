@@ -1,47 +1,51 @@
-import { SlashCommandBuilder } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 
-export const data = new SlashCommandBuilder()
-  .setName('ticket')
-  .setDescription('チケットパネルを作成します（管理者専用）')
-  .addStringOption(o => 
-    o.setName('title')
-     .setDescription('チケットタイトル')
-     .setRequired(true))
-  .addStringOption(o =>
-    o.setName('description')
-     .setDescription('チケット概要')
-     .setRequired(true))
-  .addStringOption(o =>
-    o.setName('button_label')
-     .setDescription('パネルのボタンラベル')
-     .setRequired(true))
-  .addStringOption(o =>
-    o.setName('image_url')
-     .setDescription('埋め込み画像のURL（任意）')
-     .setRequired(false))
-  .addChannelOption(o =>
-    o.setName('category')
-     .setDescription('チケット用カテゴリ（オプション）')
-     .addChannelTypes(0) // GuildCategory
-     .setRequired(false))
-  .addRoleOption(o =>
-    o.setName('notify_role')
-     .setDescription('通知＆削除権限を持つロール（オプション）')
-     .setRequired(false))
-  .addUserOption(o =>
-    o.setName('target_user')
-     .setDescription('チケット作成時メンションするユーザー（任意）')
-     .setRequired(false))
-  .addIntegerOption(o =>
-    o.setName('color_code')
-     .setDescription('パネルembedの色コード（1〜10）')
-     .setMinValue(1)
-     .setMaxValue(10)
-     .setRequired(true));
+export default {
+  data: new SlashCommandBuilder()
+    .setName('ticket')
+    .setDescription('チケットパネルを作成します（管理者専用）')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+    .addStringOption(option =>
+      option.setName('title')
+        .setDescription('チケットのタイトル')
+        .setRequired(true))
+    .addStringOption(option =>
+      option.setName('description')
+        .setDescription('チケットの概要')
+        .setRequired(true))
+    .addStringOption(option =>
+      option.setName('button_label')
+        .setDescription('パネルのボタンラベル')
+        .setRequired(true))
+    .addStringOption(option =>
+      option.setName('image_url')
+        .setDescription('埋め込み画像のURL（省略可）')
+        .setRequired(false))
+    .addChannelOption(option =>
+      option.setName('category')
+        .setDescription('作成先のカテゴリ（省略可）')
+        .addChannelTypes(4) // ChannelType.GuildCategory
+        .setRequired(false))
+    .addRoleOption(option =>
+      option.setName('notify_role')
+        .setDescription('通知・削除対象ロール（省略可）')
+        .setRequired(false))
+    .addUserOption(option =>
+      option.setName('target_user')
+        .setDescription('チケット作成時にメンションするユーザー（省略可）')
+        .setRequired(false))
+    .addIntegerOption(option =>
+      option.setName('color_code')
+        .setDescription('埋め込みの色番号（1～10）')
+        .setRequired(true)
+        .setMinValue(1)
+        .setMaxValue(10)),
 
-export async function execute(interaction) {
-  if (!interaction.member.permissions.has('ManageGuild')) {
-    return interaction.reply({ content: 'このコマンドは管理者専用です。', ephemeral: true });
+  async execute(interaction) {
+    if (!interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
+      return interaction.reply({ content: 'このコマンドは管理者専用です。', ephemeral: true });
+    }
+
+    interaction.client.emit('ticketCommand', interaction);
   }
-  interaction.client.emit('ticketCommand', interaction);
-}
+};
