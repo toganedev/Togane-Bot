@@ -17,8 +17,8 @@ export const data = new SlashCommandBuilder()
   .addStringOption(o => o.setName('ボタンラベル').setDescription('作成ボタンのラベル').setRequired(true))
   .addStringOption(o => o.setName('埋め込み画像').setDescription('画像URL（任意）').setRequired(false))
   .addChannelOption(o => o.setName('カテゴリー').setDescription('チケットカテゴリ').addChannelTypes(ChannelType.GuildCategory).setRequired(false))
-  .addRoleOption(o => o.setName('通知＆削除対象ロール').setDescription('通知・削除可能なロール').setRequired(false))
-  .addIntegerOption(o => o.setName('色番号').setDescription('チケットパネルの色（1～10）').setRequired(true))
+  .addRoleOption(o => o.setName('通知＆削除可能ロール').setDescription('通知・削除可能なロール').setRequired(false))
+  .addIntegerOption(o => o.setName('embed色').setDescription('チケットパネルの色（1～10）').setRequired(true))
   .addUserOption(o => o.setName('ユーザー').setDescription('特定ユーザーを対象').setRequired(false));
 
 const COLORS = [
