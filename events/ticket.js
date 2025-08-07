@@ -98,7 +98,7 @@ export default {
 
       callCooldowns.set(chanId, now);
 
-      // パネルから対応ロールを取得
+      // 対応ロールを取得（最初のメッセージのカスタムIDから）
       const panelMsg = (await interaction.channel.messages.fetch({ limit: 10 })).find(m =>
         m.components?.[0]?.components?.[0]?.customId?.includes('ticket_open')
       );
@@ -118,8 +118,11 @@ export default {
         }
       }
 
-      const mention = roleMention ?? '対応者の方';
-      await interaction.channel.send({ content: `${mention}、お客様が呼び出しています。` });
+      const mentionText = roleMention
+        ? `${roleMention}、お客様が呼び出しています。`
+        : `対応者の方、お客様が呼び出しています。`;
+
+      await interaction.channel.send({ content: mentionText });
       await interaction.reply({ content: '呼び出しを送信しました。', ephemeral: true });
       return;
     }
