@@ -143,10 +143,14 @@ export default {
       if (!roleId) roleId = interaction.guild.roles.everyone.id;
 
       await interaction.channel.send({
-        content: `<@&${roleId}> お客様が呼び出しています。`,
-        allowedMentions: { roles: [roleId] }
-      });
-
+  content: roleId
+    ? `<@&${roleId}> お客様が呼び出しています。`
+    : `@everyone お客様が呼び出しています。`,
+  allowedMentions: roleId
+    ? { roles: [roleId] }
+    : { parse: ['everyone'] }
+});
+      
       await interaction.editReply({ content: '呼び出しを送信しました。' });
       return;
     }
