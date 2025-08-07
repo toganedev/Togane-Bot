@@ -25,11 +25,9 @@ export default {
     // 🎫 チケット作成ボタン
     if (data.c === 'ticket_open') {
       try {
-        if (!interaction.deferred && !interaction.replied) {
-          await interaction.deferReply({ ephemeral: true });
-        }
-      } catch (e) {
-        console.warn('⚠️ deferReply (ticket_open) failed:', e);
+        await interaction.deferReply({ flags: 1 << 6 });
+      } catch (err) {
+        console.warn('deferReply failed (ticket_open):', err);
         return;
       }
 
@@ -79,14 +77,13 @@ export default {
           .setStyle(ButtonStyle.Danger)
       );
 
-      const mentions = [`<@${interaction.user.id}>`];
-      if (role) mentions.push(`<@&${role.id}>`);
+      const mentions = [`<@${interaction.user.id}>`, '@everyone'];
 
       await channel.send({
         content: mentions.join(' '),
         embeds: [embed],
         components: [buttons],
-        allowedMentions: { parse: ['users', 'roles'] }
+        allowedMentions: { parse: ['users', 'everyone'] }
       });
 
       await interaction.editReply({ content: `チケットを作成しました：${channel}` });
@@ -95,19 +92,9 @@ export default {
 
     // ⏰ 呼び出しボタン
     if (interaction.customId === 'call_handler') {
-      try {
-        if (!interaction.deferred && !interaction.replied) {
-          await interaction.deferReply({ ephemeral: true });
-        }
-      } catch (e) {
-        console.warn('⚠️ deferReply (call_handler) failed:', e);
-        return;
-      }
-
       const chanId = interaction.channelId;
       const now = Date.now();
       const lastCall = callCooldowns.get(chanId) ?? 0;
-
       const cooldown = 60 * 60 * 1000;
       const remaining = cooldown - (now - lastCall);
 
@@ -118,12 +105,11 @@ export default {
         const embed = new EmbedBuilder()
           .setColor('Red')
           .setDescription(`次の呼び出しまで：${hrs}時間${mins}分${secs}秒`);
-        return await interaction.editReply({ embeds: [embed] });
+        return await interaction.reply({ embeds: [embed], flags: 1 << 6 });
       }
 
       callCooldowns.set(chanId, now);
-
-      let roleId = null;
+      let roleId = interaction.guild.roles.everyone.id;
 
       try {
         const panelMsg = (await interaction.channel.messages.fetch({ limit: 10 })).find(m =>
@@ -140,29 +126,21 @@ export default {
         console.error('対応ロールの解析失敗:', err);
       }
 
-      if (!roleId) roleId = interaction.guild.roles.everyone.id;
-
       await interaction.channel.send({
-  content: roleId
-    ? `<@&${roleId}> お客様が呼び出しています。`
-    : `@everyone お客様が呼び出しています。`,
-  allowedMentions: roleId
-    ? { roles: [roleId] }
-    : { parse: ['everyone'] }
-});
-      
-      await interaction.editReply({ content: '呼び出しを送信しました。' });
+        content: `<@&${roleId}> お客様が呼び出しています。`,
+        allowedMentions: { roles: [roleId], parse: ['roles', 'everyone'] }
+      });
+
+      await interaction.reply({ content: '呼び出しを送信しました。', flags: 1 << 6 });
       return;
     }
 
-    // 🗑️ チャンネル削除
+    // 🗑️ 削除ボタン
     if (interaction.customId === 'delete_ticket') {
       try {
-        if (!interaction.deferred && !interaction.replied) {
-          await interaction.deferReply({ ephemeral: true });
-        }
-      } catch (e) {
-        console.warn('⚠️ deferReply (delete_ticket) failed:', e);
+        await interaction.deferReply({ flags: 1 << 6 });
+      } catch (err) {
+        console.warn('deferReply (delete_ticket) failed:', err);
         return;
       }
 
