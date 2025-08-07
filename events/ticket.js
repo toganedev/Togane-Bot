@@ -87,63 +87,55 @@ export default {
       return;
     }
 
-    // ⏰ 呼び出しボタン
-    if (interaction.customId === 'call_handler') {
-      const chanId = interaction.channelId;
-      const now = Date.now();
-      const lastCall = callCooldowns.get(chanId) ?? 0;
+// ⏰ 呼び出しボタン
+if (interaction.customId === 'call_handler') {
+  const chanId = interaction.channelId;
+  const now = Date.now();
+  const lastCall = callCooldowns.get(chanId) ?? 0;
 
-      const cooldown = 60 * 60 * 1000; // 1時間
-      const remaining = cooldown - (now - lastCall);
+  const cooldown = 60 * 60 * 1000; // 1時間
+  const remaining = cooldown - (now - lastCall);
 
-      if (remaining > 0) {
-        const hrs = Math.floor(remaining / 3600000);
-        const mins = Math.floor((remaining % 3600000) / 60000);
-        const secs = Math.floor((remaining % 60000) / 1000);
-        const embed = new EmbedBuilder()
-          .setColor('Red')
-          .setDescription(`次の呼び出しまで：${hrs}時間${mins}分${secs}秒`);
-        return await interaction.reply({ embeds: [embed], ephemeral: true });
+  if (remaining > 0) {
+    const hrs = Math.floor(remaining / 3600000);
+    const mins = Math.floor((remaining % 3600000) / 60000);
+    const secs = Math.floor((remaining % 60000) / 1000);
+    const embed = new EmbedBuilder()
+      .setColor('Red')
+      .setDescription(`次の呼び出しまで：${hrs}時間${mins}分${secs}秒`);
+    return await interaction.reply({ embeds: [embed], ephemeral: true });
+  }
+
+  callCooldowns.set(chanId, now);
+
+  let roleId = null;
+
+  try {
+    const panelMsg = (await interaction.channel.messages.fetch({ limit: 10 })).find(m =>
+      m.components?.[0]?.components?.[0]?.customId?.includes('ticket_open')
+    );
+
+    if (panelMsg) {
+      const idData = JSON.parse(panelMsg.components[0].components[0].customId);
+      if (idData.role && interaction.guild.roles.cache.has(idData.role)) {
+        roleId = idData.role;
       }
-
-      callCooldowns.set(chanId, now);
-
-      // 対応ロールを取得
-      let roleMention = null;
-      let roleId = null;
-
-      try {
-        const panelMsg = (await interaction.channel.messages.fetch({ limit: 10 })).find(m =>
-          m.components?.[0]?.components?.[0]?.customId?.includes('ticket_open')
-        );
-
-        if (panelMsg) {
-          const idData = JSON.parse(panelMsg.components[0].components[0].customId);
-          if (idData.role) {
-            const role = interaction.guild.roles.cache.get(idData.role);
-            if (role) {
-              roleMention = `<@&${role.id}>`;
-              roleId = role.id;
-            }
-          }
-        }
-      } catch (err) {
-        console.error('対応ロールの解析失敗:', err);
-      }
-
-      const mentionText = roleMention
-        ? `${roleMention}、お客様が呼び出しています。`
-        : `対応者の方、お客様が呼び出しています。`;
-
-      await interaction.channel.send({
-        content: mentionText,
-        allowedMentions: roleId ? { roles: [roleId] } : undefined
-      });
-
-      await interaction.reply({ content: '呼び出しを送信しました。', ephemeral: true });
-      return;
     }
+  } catch (err) {
+    console.error('対応ロールの解析失敗:', err);
+  }
 
+  // fallback: @everyone
+  if (!roleId) roleId = interaction.guild.roles.everyone.id;
+
+  await interaction.channel.send({
+    content: `<@&${roleId}> お客様が呼び出しています。`,
+    allowedMentions: { roles: [roleId] }
+  });
+
+  await interaction.reply({ content: '呼び出しを送信しました。', ephemeral: true });
+  return;
+}
     // 🗑️ 削除ボタン
     if (interaction.customId === 'delete_ticket') {
       await interaction.deferReply({ ephemeral: true });
