@@ -73,7 +73,16 @@ export default {
           .setStyle(ButtonStyle.Danger)
       );
 
-      await channel.send({ content: `<@${interaction.user.id}>`, embeds: [embed], components: [buttons] });
+      const mentions = [`<@${interaction.user.id}>`];
+      if (role) mentions.push(`<@&${role.id}>`);
+
+      await channel.send({
+        content: mentions.join(' '),
+        embeds: [embed],
+        components: [buttons],
+        allowedMentions: { parse: ['users', 'roles'] }
+      });
+
       await interaction.editReply({ content: `チケットを作成しました：${channel}` });
       return;
     }
@@ -101,6 +110,8 @@ export default {
 
       // 対応ロールを取得
       let roleMention = null;
+      let roleId = null;
+
       try {
         const panelMsg = (await interaction.channel.messages.fetch({ limit: 10 })).find(m =>
           m.components?.[0]?.components?.[0]?.customId?.includes('ticket_open')
@@ -112,6 +123,7 @@ export default {
             const role = interaction.guild.roles.cache.get(idData.role);
             if (role) {
               roleMention = `<@&${role.id}>`;
+              roleId = role.id;
             }
           }
         }
@@ -123,7 +135,11 @@ export default {
         ? `${roleMention}、お客様が呼び出しています。`
         : `対応者の方、お客様が呼び出しています。`;
 
-      await interaction.channel.send({ content: mentionText });
+      await interaction.channel.send({
+        content: mentionText,
+        allowedMentions: roleId ? { roles: [roleId] } : undefined
+      });
+
       await interaction.reply({ content: '呼び出しを送信しました。', ephemeral: true });
       return;
     }
