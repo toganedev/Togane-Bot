@@ -7,8 +7,8 @@ import {
   EmbedBuilder
 } from 'discord.js';
 
-const callCooldowns = new Map(); // チャンネル単位の呼び出しクールダウン
-const LOG_DM_USER_ID = '1401421639106957464';
+const callCooldowns = new Map(); // 呼び出しのチャンネルごとのクールダウン
+const LOG_DM_USER_ID = '1401421639106957464'; // ログを受け取るユーザーID
 
 export default {
   name: 'interactionCreate',
@@ -19,9 +19,10 @@ export default {
     try {
       data = JSON.parse(interaction.customId);
     } catch {
-      return;
+      data = { c: interaction.customId }; // JSONでない場合（例: 'call_handler'）はそのまま処理
     }
 
+    // 🎫 チケット作成ボタン
     if (data.c === 'ticket_open') {
       const guild = interaction.guild;
       const member = interaction.member;
@@ -73,8 +74,10 @@ export default {
 
       await channel.send({ content: `<@${interaction.user.id}>`, embeds: [embed], components: [buttons] });
       await interaction.reply({ content: `チケットを作成しました：${channel}`, ephemeral: true });
+      return;
     }
 
+    // ⏰ 呼び出しボタン
     if (interaction.customId === 'call_handler') {
       const chanId = interaction.channelId;
       const now = Date.now();
@@ -95,7 +98,7 @@ export default {
 
       callCooldowns.set(chanId, now);
 
-      // 対応ロールを取得（最初のメッセージのカスタムIDから）
+      // パネルから対応ロールを取得
       const panelMsg = (await interaction.channel.messages.fetch({ limit: 10 })).find(m =>
         m.components?.[0]?.components?.[0]?.customId?.includes('ticket_open')
       );
@@ -111,15 +114,17 @@ export default {
             }
           }
         } catch (err) {
-          console.error('ロール情報の解析に失敗:', err);
+          console.error('対応ロールの解析失敗:', err);
         }
       }
 
       const mention = roleMention ?? '対応者の方';
       await interaction.channel.send({ content: `${mention}、お客様が呼び出しています。` });
       await interaction.reply({ content: '呼び出しを送信しました。', ephemeral: true });
+      return;
     }
 
+    // 🗑️ 削除ボタン
     if (interaction.customId === 'delete_ticket') {
       const member = interaction.member;
       const hasPermission =
@@ -133,7 +138,6 @@ export default {
         return await interaction.reply({ embeds: [embed], ephemeral: true });
       }
 
-      // ログ送信準備
       const messages = await interaction.channel.messages.fetch({ limit: 100 });
       const textLog = messages
         .filter(m => !m.author.bot)
@@ -158,9 +162,10 @@ export default {
           files: [{ attachment: Buffer.from(textLog, 'utf-8'), name: `${interaction.channel.name}_log.txt` }]
         });
       }
-        }   
-}; 
 
       await interaction.reply({ content: 'チャンネルを削除します。', ephemeral: true });
       await interaction.channel.delete();
+      return;
     }
+  }
+};
