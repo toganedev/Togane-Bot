@@ -22,22 +22,22 @@ export default {
         .setDescription('パネルの概要')
         .setRequired(false)
     )
-    .addAttachmentOption(opt =>
-  opt.setName('image')
-    .setDescription('埋め込み画像')
-    .setRequired(false)
-)
+    .addStringOption(option =>
+      option.setName('画像')
+        .setDescription('画像URLを指定（省略時はテンプレ画像を使用）')
+        .setRequired(false)
+    )
     .addStringOption(option =>
       option.setName('ボタン')
         .setDescription('ボタンのラベル（省略時は「お問い合わせ」）')
         .setRequired(false)
     )
-　　.addChannelOption(option =>
- 　　 option.setName('カテゴリー')
-    　　.setDescription('チケットを作成するカテゴリー')
-   　　 .addChannelTypes(ChannelType.GuildCategory)
-   　　 .setRequired(false)
-　　)
+    .addChannelOption(option =>
+      option.setName('カテゴリー')
+        .setDescription('チケットを作成するカテゴリー')
+        .addChannelTypes(ChannelType.GuildCategory)
+        .setRequired(false)
+    )
     .addRoleOption(option =>
       option.setName('対応ロール')
         .setDescription('対応者のロール')
@@ -86,7 +86,6 @@ export default {
     const payload = {
       embeds: [embed],
       components: [row],
-      ephemeral: false,
     };
 
     if (imageAttachment) {
