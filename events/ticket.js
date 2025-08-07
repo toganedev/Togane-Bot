@@ -158,6 +158,8 @@ export default {
           files: [{ attachment: Buffer.from(textLog, 'utf-8'), name: `${interaction.channel.name}_log.txt` }]
         });
       }
+        }   
+}; 
 
       await interaction.reply({ content: 'チャンネルを削除します。', ephemeral: true });
       await interaction.channel.delete();
