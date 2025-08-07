@@ -22,11 +22,11 @@ export default {
         .setDescription('パネルの概要')
         .setRequired(false)
     )
-    .addStringOption(option =>
-      option.setName('画像')
-        .setDescription('画像URLを指定（省略時はテンプレ画像を使用）')
-        .setRequired(false)
-    )
+    .addAttachmentOption(opt =>
+  opt.setName('image')
+    .setDescription('埋め込み画像')
+    .setRequired(false)
+)
     .addStringOption(option =>
       option.setName('ボタン')
         .setDescription('ボタンのラベル（省略時は「お問い合わせ」）')
