@@ -7,8 +7,8 @@ import {
   EmbedBuilder
 } from 'discord.js';
 
-const callCooldowns = new Map(); // 呼び出しのチャンネルごとのクールダウン
-const LOG_DM_USER_ID = '1401421639106957464'; // ログを受け取るユーザーID
+const callCooldowns = new Map();
+const LOG_DM_USER_ID = '1401421639106957464';
 
 export default {
   name: 'interactionCreate',
@@ -19,26 +19,27 @@ export default {
     try {
       data = JSON.parse(interaction.customId);
     } catch {
-      data = { c: interaction.customId }; // JSONでない場合（例: 'call_handler'）はそのまま処理
+      data = { c: interaction.customId };
     }
 
     // 🎫 チケット作成ボタン
     if (data.c === 'ticket_open') {
+      await interaction.deferReply({ ephemeral: true });
+
       const guild = interaction.guild;
       const member = interaction.member;
-
-      const category = data.cat ? guild.channels.cache.get(data.cat) : interaction.channel?.parent ?? null;
       const role = data.role ? guild.roles.cache.get(data.role) : null;
+      const category = data.cat ? guild.channels.cache.get(data.cat) : interaction.channel?.parent ?? null;
 
       const existing = guild.channels.cache.find(c =>
         c.name.includes(`🎫｜${interaction.user.username}`) && c.type === ChannelType.GuildText
       );
       if (existing) {
-        return await interaction.reply({ content: `既にチケットを作成しています：${existing}`, ephemeral: true });
+        return await interaction.editReply({ content: `既にチケットを作成しています：${existing}` });
       }
 
       const channel = await guild.channels.create({
-        name: `🎫｜${interaction.user.username}${interaction.user.id}`,
+        name: `🎫｜${interaction.user.username}${interaction.user.id}`.replace(/\s/g, ''),
         type: ChannelType.GuildText,
         parent: category ?? undefined,
         permissionOverwrites: [
@@ -73,7 +74,7 @@ export default {
       );
 
       await channel.send({ content: `<@${interaction.user.id}>`, embeds: [embed], components: [buttons] });
-      await interaction.reply({ content: `チケットを作成しました：${channel}`, ephemeral: true });
+      await interaction.editReply({ content: `チケットを作成しました：${channel}` });
       return;
     }
 
@@ -98,14 +99,14 @@ export default {
 
       callCooldowns.set(chanId, now);
 
-      // 対応ロールを取得（最初のメッセージのカスタムIDから）
-      const panelMsg = (await interaction.channel.messages.fetch({ limit: 10 })).find(m =>
-        m.components?.[0]?.components?.[0]?.customId?.includes('ticket_open')
-      );
-
+      // 対応ロールを取得
       let roleMention = null;
-      if (panelMsg) {
-        try {
+      try {
+        const panelMsg = (await interaction.channel.messages.fetch({ limit: 10 })).find(m =>
+          m.components?.[0]?.components?.[0]?.customId?.includes('ticket_open')
+        );
+
+        if (panelMsg) {
           const idData = JSON.parse(panelMsg.components[0].components[0].customId);
           if (idData.role) {
             const role = interaction.guild.roles.cache.get(idData.role);
@@ -113,9 +114,9 @@ export default {
               roleMention = `<@&${role.id}>`;
             }
           }
-        } catch (err) {
-          console.error('対応ロールの解析失敗:', err);
         }
+      } catch (err) {
+        console.error('対応ロールの解析失敗:', err);
       }
 
       const mentionText = roleMention
@@ -129,6 +130,8 @@ export default {
 
     // 🗑️ 削除ボタン
     if (interaction.customId === 'delete_ticket') {
+      await interaction.deferReply({ ephemeral: true });
+
       const member = interaction.member;
       const hasPermission =
         member.roles.cache.some(r => r.permissions.has(PermissionFlagsBits.ManageChannels)) ||
@@ -138,7 +141,7 @@ export default {
         const embed = new EmbedBuilder()
           .setColor('Red')
           .setDescription('このチャンネルを削除する権限がありません。');
-        return await interaction.reply({ embeds: [embed], ephemeral: true });
+        return await interaction.editReply({ embeds: [embed] });
       }
 
       const messages = await interaction.channel.messages.fetch({ limit: 100 });
@@ -166,7 +169,7 @@ export default {
         });
       }
 
-      await interaction.reply({ content: 'チャンネルを削除します。', ephemeral: true });
+      await interaction.editReply({ content: 'チャンネルを削除します。' });
       await interaction.channel.delete();
       return;
     }
