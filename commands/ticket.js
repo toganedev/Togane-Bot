@@ -31,11 +31,12 @@ export default {
         .setDescription('ボタンのラベル（省略時は「お問い合わせ」）')
         .setRequired(false)
     )
-    .addChannelOption(option =>
-      option.setName('カテゴリー')
-        .setDescription('チケットを作成するカテゴリー')
-        .setRequired(false)
-    )
+　　.addChannelOption(option =>
+ 　　 option.setName('カテゴリー')
+    　　.setDescription('チケットを作成するカテゴリー')
+   　　 .addChannelTypes(ChannelType.GuildCategory)
+   　　 .setRequired(false)
+　　)
     .addRoleOption(option =>
       option.setName('対応ロール')
         .setDescription('対応者のロール')
