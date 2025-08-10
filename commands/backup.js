@@ -12,18 +12,13 @@ export default {
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   async execute(interaction) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
     try {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
-      if (!interaction.guild.features.includes('COMMUNITY')) {
-        return interaction.editReply('⚠️ このサーバーではテンプレート機能が有効化されていません。');
-      }
-
       if (!interaction.guild.templates) {
-        return interaction.editReply('❌ このサーバーではテンプレート作成がサポートされていません。');
+        return interaction.editReply('❌ このサーバーではテンプレート機能が利用できません。');
       }
 
-      // テンプレート作成
       const template = await interaction.guild.templates.create(
         `backup-${Date.now()}`,
         `バックアップ作成: ${new Date().toLocaleString('ja-JP')}`
