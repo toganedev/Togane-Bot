@@ -1,18 +1,27 @@
 import {
   SlashCommandBuilder,
   EmbedBuilder,
-  PermissionFlagsBits
+  PermissionFlagsBits,
+  MessageFlags
 } from 'discord.js';
 
 export default {
   data: new SlashCommandBuilder()
     .setName('backup')
-    .setDescription('サーバーのチャンネルやカテゴリー構成をテンプレートとして保存し、リンクをDMで送信します')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator), // 管理者のみ実行可能
+    .setDescription('サーバー構成をテンプレートとして保存し、リンクをDMで送信します')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   async execute(interaction) {
     try {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+      if (!interaction.guild.features.includes('COMMUNITY')) {
+        return interaction.editReply('⚠️ このサーバーではテンプレート機能が有効化されていません。');
+      }
+
+      if (!interaction.guild.templates) {
+        return interaction.editReply('❌ このサーバーではテンプレート作成がサポートされていません。');
+      }
 
       // テンプレート作成
       const template = await interaction.guild.templates.create(
@@ -20,21 +29,17 @@ export default {
         `バックアップ作成: ${new Date().toLocaleString('ja-JP')}`
       );
 
-      // Embed作成
       const embed = new EmbedBuilder()
         .setColor(0x00AE86)
         .setTitle('📦 サーバーバックアップ完了')
-        .setDescription(
-          `以下のリンクからサーバー構成を復元できます。\n\n[🔗 バックアップリンク](${template.url})`
-        )
+        .setDescription(`以下のリンクからサーバー構成を復元できます。\n\n[🔗 バックアップリンク](${template.url})`)
         .setFooter({ text: `サーバー: ${interaction.guild.name}` })
         .setTimestamp();
 
-      // DM送信
       try {
         await interaction.user.send({ embeds: [embed] });
         await interaction.editReply('✅ バックアップリンクをDMに送信しました。');
-      } catch (dmError) {
+      } catch {
         await interaction.editReply('⚠️ DMを送信できませんでした。DMを有効にしてください。');
       }
 
