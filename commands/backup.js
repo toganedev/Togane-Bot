@@ -1,46 +1,32 @@
-import {
-  SlashCommandBuilder,
-  EmbedBuilder,
-  PermissionFlagsBits,
-  MessageFlags
-} from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 
 export default {
-  data: new SlashCommandBuilder()
-    .setName('backup')
-    .setDescription('サーバー構成をテンプレートとして保存し、リンクをDMで送信します')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    data: new SlashCommandBuilder()
+        .setName('togane-server-template')
+        .setDescription('ToganeサーバーのテンプレートリンクをDMで送信します'),
+        
+    async execute(interaction) {
+        const templateLink = 'https://discord.new/UGnHYnEm7zGT';
 
-  async execute(interaction) {
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        // Embed作成
+        const embed = new EmbedBuilder()
+            .setTitle('📄 Togane サーバーテンプレート')
+            .setDescription(`以下のリンクからテンプレートを使用できます:\n[テンプレートを開く](${templateLink})`)
+            .setColor(0x00AE86)
+            .setFooter({ text: 'テンプレートを使用して新しいサーバーを作成できます' });
 
-    try {
-      if (!interaction.guild.templates) {
-        return interaction.editReply('❌ このサーバーではテンプレート機能が利用できません。');
-      }
-
-      const template = await interaction.guild.templates.create(
-        `backup-${Date.now()}`,
-        `バックアップ作成: ${new Date().toLocaleString('ja-JP')}`
-      );
-
-      const embed = new EmbedBuilder()
-        .setColor(0x00AE86)
-        .setTitle('📦 サーバーバックアップ完了')
-        .setDescription(`以下のリンクからサーバー構成を復元できます。\n\n[🔗 バックアップリンク](${template.url})`)
-        .setFooter({ text: `サーバー: ${interaction.guild.name}` })
-        .setTimestamp();
-
-      try {
-        await interaction.user.send({ embeds: [embed] });
-        await interaction.editReply('✅ バックアップリンクをDMに送信しました。');
-      } catch {
-        await interaction.editReply('⚠️ DMを送信できませんでした。DMを有効にしてください。');
-      }
-
-    } catch (error) {
-      console.error(error);
-      await interaction.editReply('❌ バックアップ作成中にエラーが発生しました。');
+        try {
+            // DM送信
+            await interaction.user.send({ embeds: [embed] });
+            await interaction.reply({
+                content: '📬 DMにテンプレートリンクを送信しました！',
+                flags: 64 // Ephemeralの代替
+            });
+        } catch (err) {
+            await interaction.reply({
+                content: '❌ DMを送信できませんでした。DMが開放されているか確認してください。',
+                flags: 64
+            });
+        }
     }
-  }
 };
