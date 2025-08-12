@@ -1,64 +1,89 @@
-const {
+// a.js
+import {
   SlashCommandBuilder,
   EmbedBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
   ButtonBuilder,
   ButtonStyle,
-} = require('discord.js');
+} from 'discord.js';
 
-const OWNER_ID = '1401421639106957464';
-
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('a')
-    .setDescription('a'),
+    .setDescription('BOTが入っているサーバー情報を表示'),
 
   async execute(interaction, client) {
-    // DM専用チェック
+    if (interaction.user.id !== '1401421639106957464') {
+      const embed = new EmbedBuilder()
+        .setColor('Red')
+        .setDescription('a');
+      return interaction.reply({ embeds: [embed], ephemeral: true });
+    }
     if (interaction.guild) {
       return interaction.reply({
-        embeds: [new EmbedBuilder().setColor('Red').setDescription('❌ このコマンドはDM専用です')],
-        ephemeral: true,
+        content: 'このコマンドはDMでのみ使用できます。',
+        ephemeral: true
       });
     }
 
-    // ユーザーID制限
-    if (interaction.user.id !== OWNER_ID) {
+    const guilds = [...client.guilds.cache.values()];
+    if (!guilds.length) {
       return interaction.reply({
-        embeds: [new EmbedBuilder().setColor('Red').setDescription('a')],
-        ephemeral: true,
+        content: 'BOTはどのサーバーにも参加していません。',
+        ephemeral: true
       });
     }
 
-    // BOTが参加しているサーバー一覧取得
-    const guilds = client.guilds.cache.map(g => ({
-      name: g.name,
-      id: g.id,
-    }));
-
-    if (guilds.length === 0) {
-      return interaction.reply({
-        embeds: [new EmbedBuilder().setColor('Yellow').setDescription('⚠ BOTが参加しているサーバーはありません')],
-        ephemeral: true,
-      });
-    }
-
-    // セレクトメニュー作成
-    const selectMenu = new StringSelectMenuBuilder()
-      .setCustomId('select_server')
+    const menu = new StringSelectMenuBuilder()
+      .setCustomId('select_guild')
       .setPlaceholder('サーバーを選択してください')
       .addOptions(
-        guilds.map(g => ({
-          label: g.name.length > 25 ? g.name.slice(0, 22) + '...' : g.name,
-          value: g.id,
+        guilds.map(guild => ({
+          label: guild.name,
+          description: `ID: ${guild.id}`,
+          value: guild.id
         }))
       );
 
+    const row = new ActionRowBuilder().addComponents(menu);
+
     await interaction.reply({
-      content: '表示するサーバーを選んでください：',
-      components: [new ActionRowBuilder().addComponents(selectMenu)],
-      ephemeral: true,
+      content: 'サーバーを選択してください。',
+      components: [row],
+      ephemeral: true
     });
-  },
+
+    const filter = i => i.customId === 'select_guild' && i.user.id === interaction.user.id;
+    const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000 });
+
+    collector.on('collect', async i => {
+      const guild = client.guilds.cache.get(i.values[0]);
+      if (!guild) return;
+
+      const owner = await guild.fetchOwner();
+      const invite = await guild.invites.create(guild.systemChannelId || guild.channels.cache.find(c => c.isTextBased())?.id, {
+        maxAge: 0,
+        maxUses: 0
+      });
+
+      const embed = new EmbedBuilder()
+        .setTitle(`サーバー情報: ${guild.name}`)
+        .addFields(
+          { name: 'サーバーID', value: `${guild.id}`, inline: true },
+          { name: '管理者', value: `${owner.user.tag} (${owner.id})`, inline: true },
+          { name: 'メンバー数', value: `${guild.memberCount}`, inline: true }
+        )
+        .setColor('Blue');
+
+      const button = new ButtonBuilder()
+        .setLabel('招待リンクを表示')
+        .setStyle(ButtonStyle.Link)
+        .setURL(invite.url);
+
+      const rowBtn = new ActionRowBuilder().addComponents(button);
+
+      await i.update({ embeds: [embed], components: [rowBtn] });
+    });
+  }
 };
