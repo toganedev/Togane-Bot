@@ -1,4 +1,3 @@
-// commands/server.js
 const {
   SlashCommandBuilder,
   EmbedBuilder,
