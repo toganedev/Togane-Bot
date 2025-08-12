@@ -1,11 +1,11 @@
-const { Events, EmbedBuilder, codeBlock } = require('discord.js');
+import { Events, EmbedBuilder, codeBlock } from 'discord.js';
 
 const LOG_CHANNEL_ID = '1404771471695548456';
 
-module.exports = (client) => {
-  
-  // BOT起動時
-  client.once(Events.ClientReady, () => {
+export default {
+  name: Events.ClientReady,
+  once: true,
+  async execute(client) {
     const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
     if (!logChannel) return;
 
@@ -19,12 +19,16 @@ module.exports = (client) => {
       ))
       .setTimestamp();
 
-    logChannel.send({ embeds: [embed] });
-  });
+    await logChannel.send({ embeds: [embed] });
+  }
+};
 
-  // サーバーに追加された時
-  client.on(Events.GuildCreate, async (guild) => {
-    const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
+// 追加イベント（サーバーに追加されたとき）
+export const guildJoinEvent = {
+  name: Events.GuildCreate,
+  once: false,
+  async execute(guild) {
+    const logChannel = guild.client.channels.cache.get(LOG_CHANNEL_ID);
     if (!logChannel) return;
 
     let ownerUser;
@@ -43,10 +47,10 @@ module.exports = (client) => {
         `サーバーID: ${guild.id}\n` +
         `管理者: ${ownerUser}\n` +
         `サーバー人数: ${guild.memberCount}\n` +
-        `現在の導入サーバー数: ${client.guilds.cache.size}`
+        `現在の導入サーバー数: ${guild.client.guilds.cache.size}`
       ))
       .setTimestamp();
 
-    logChannel.send({ embeds: [embed] });
-  });
+    await logChannel.send({ embeds: [embed] });
+  }
 };
