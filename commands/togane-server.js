@@ -1,4 +1,5 @@
 import {
+  SlashCommandBuilder,
   EmbedBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
@@ -7,21 +8,31 @@ import {
 } from 'discord.js';
 
 export default {
-  name: 'togane!server',
-  description: '特定サーバーの情報をページ形式で表示します',
-  async execute(message, args, client) {
-    if (message.author.id !== '1401421639106957464') {
-      return message.reply('このコマンドは専用ユーザーのみが実行できます。');
+  data: new SlashCommandBuilder()
+    .setName('togane-server')
+    .setDescription('特定サーバーの情報をページ形式で表示します'),
+
+  async execute(interaction, client) {
+    // 専用ユーザーIDチェック
+    if (interaction.user.id !== '1401421639106957464') {
+      return interaction.reply({
+        content: 'このコマンドは専用ユーザーのみが実行できます。',
+        ephemeral: true
+      });
     }
 
-    const guild = message.guild;
+    const guild = interaction.guild;
     if (!guild) {
-      return message.reply('このコマンドはサーバー内でのみ使用できます。');
+      return interaction.reply({
+        content: 'このコマンドはサーバー内でのみ使用できます。',
+        ephemeral: true
+      });
     }
 
-    // メンバーキャッシュを確実に取得
+    // メンバーキャッシュ更新
     await guild.members.fetch();
 
+    // ページデータ作成
     const pages = [
       {
         label: '基本情報',
@@ -66,6 +77,7 @@ export default {
       }
     ];
 
+    // セレクトメニュー作成
     const selectMenu = new StringSelectMenuBuilder()
       .setCustomId('server-info-select')
       .setPlaceholder('表示するページを選択')
@@ -73,25 +85,38 @@ export default {
 
     const row = new ActionRowBuilder().addComponents(selectMenu);
 
-    const msg = await message.channel.send({ embeds: [pages[0].embed], components: [row] });
+    // 初期ページ送信
+    await interaction.reply({
+      embeds: [pages[0].embed],
+      components: [row],
+      ephemeral: false
+    });
 
+    // メニュー操作監視
+    const msg = await interaction.fetchReply();
     const collector = msg.createMessageComponentCollector({
       componentType: ComponentType.StringSelect,
       time: 120000
     });
 
-    collector.on('collect', async interaction => {
-      if (interaction.user.id !== message.author.id) {
-        return interaction.reply({ content: 'このメニューはあなたは操作できません。', ephemeral: true });
+    collector.on('collect', async i => {
+      if (i.user.id !== interaction.user.id) {
+        return i.reply({
+          content: 'このメニューはあなたは操作できません。',
+          ephemeral: true
+        });
       }
-      const selected = pages.find(p => p.value === interaction.values[0]);
+      const selected = pages.find(p => p.value === i.values[0]);
       if (selected) {
-        await interaction.update({ embeds: [selected.embed], components: [row] });
+        await i.update({
+          embeds: [selected.embed],
+          components: [row]
+        });
       }
     });
 
     collector.on('end', () => {
-      msg.edit({ components: [] });
+      msg.edit({ components: [] }).catch(() => {});
     });
   }
 };
