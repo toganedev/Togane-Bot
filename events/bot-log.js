@@ -1,56 +1,65 @@
-import { Events, EmbedBuilder, codeBlock } from 'discord.js';
+import {
+  EmbedBuilder,
+  codeBlock,
+} from 'discord.js';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc.js';
+import timezone from 'dayjs/plugin/timezone.js';
 
-const LOG_CHANNEL_ID = '1404771471695548456';
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const LOG_CHANNEL_ID = '1404771471695548456'; // 通知先チャンネルID
 
 export default {
-  name: Events.ClientReady,
+  name: 'ready',
   once: true,
   async execute(client) {
-    const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
-    if (!logChannel) return;
+    const channel = await client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
+    if (!channel) return;
 
     const embed = new EmbedBuilder()
-      .setTitle('🚀 BOT起動通知')
-      .setColor('Green')
-      .setDescription(codeBlock(
-        `BOT名: ${client.user.tag}\n` +
-        `起動時刻: ${new Date().toLocaleString('ja-JP')}\n` +
-        `導入サーバー数: ${client.guilds.cache.size}`
-      ))
-      .setTimestamp();
+      .setTitle('✅ BOT起動通知')
+      .setColor(0x00ff00)
+      .setDescription('Botが正常に起動しました。')
+      .addFields(
+        {
+          name: '起動時刻 (JST)',
+          value: dayjs().tz('Asia/Tokyo').format('YYYY/MM/DD HH:mm:ss'),
+        },
+        {
+          name: '導入サーバー数',
+          value: `${client.guilds.cache.size} サーバー`,
+        }
+      )
+      .setFooter({ text: `Bot ID: ${client.user.id}` });
 
-    await logChannel.send({ embeds: [embed] });
-  }
+    await channel.send({ embeds: [embed] });
+  },
 };
 
-// 追加イベント（サーバーに追加されたとき）
-export const guildJoinEvent = {
-  name: Events.GuildCreate,
-  once: false,
-  async execute(guild) {
-    const logChannel = guild.client.channels.cache.get(LOG_CHANNEL_ID);
-    if (!logChannel) return;
+// Botがサーバーに追加されたとき
+export const guildCreateEvent = {
+  name: 'guildCreate',
+  async execute(guild, client) {
+    const channel = await client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
+    if (!channel) return;
 
-    let ownerUser;
-    try {
-      const owner = await guild.fetchOwner();
-      ownerUser = `${owner.user.tag} (${owner.user.id})`;
-    } catch {
-      ownerUser = '取得失敗';
-    }
+    const owner = await guild.fetchOwner().catch(() => null);
 
     const embed = new EmbedBuilder()
-      .setTitle('📥 BOTがサーバーに追加されました')
-      .setColor('Blue')
-      .setDescription(codeBlock(
-        `サーバー名: ${guild.name}\n` +
-        `サーバーID: ${guild.id}\n` +
-        `管理者: ${ownerUser}\n` +
-        `サーバー人数: ${guild.memberCount}\n` +
-        `現在の導入サーバー数: ${guild.client.guilds.cache.size}`
-      ))
-      .setTimestamp();
+      .setTitle('📥 サーバー追加通知')
+      .setColor(0x3498db)
+      .setDescription('Botが新しいサーバーに追加されました。')
+      .addFields(
+        { name: 'サーバー名', value: codeBlock(guild.name), inline: true },
+        { name: 'サーバーID', value: codeBlock(guild.id), inline: true },
+        { name: '管理者', value: owner ? `${owner.user.tag} (${owner.id})` : '不明', inline: true },
+        { name: 'メンバー数', value: `${guild.memberCount} 人`, inline: true },
+        { name: '導入サーバー数', value: `${client.guilds.cache.size} サーバー`, inline: true },
+        { name: '追加日時 (JST)', value: dayjs().tz('Asia/Tokyo').format('YYYY/MM/DD HH:mm:ss') }
+      );
 
-    await logChannel.send({ embeds: [embed] });
-  }
+    await channel.send({ embeds: [embed] });
+  },
 };
