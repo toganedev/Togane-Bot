@@ -11,8 +11,8 @@ const OWNER_ID = '1401421639106957464';
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName('server')
-    .setDescription('BOTが参加しているサーバー情報を取得 (DM専用・特定ユーザーのみ)'),
+    .setName('a')
+    .setDescription('a'),
 
   async execute(interaction, client) {
     // DM専用チェック
