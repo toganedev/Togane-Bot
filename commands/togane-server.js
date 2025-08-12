@@ -2,28 +2,26 @@ import {
   EmbedBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
-  ComponentType
+  ComponentType,
+  ChannelType
 } from 'discord.js';
 
 export default {
   name: 'togane!server',
   description: '特定サーバーの情報をページ形式で表示します',
   async execute(message, args, client) {
-    // 専用ユーザーIDチェック（1401421639106957464）
     if (message.author.id !== '1401421639106957464') {
-      return message.reply({
-        content: 'このコマンドは専用ユーザーのみが実行できます。',
-        ephemeral: true
-      });
+      return message.reply('このコマンドは専用ユーザーのみが実行できます。');
     }
 
-    // 対象サーバー（現在のguild）
     const guild = message.guild;
     if (!guild) {
       return message.reply('このコマンドはサーバー内でのみ使用できます。');
     }
 
-    // 各ページのデータを作成
+    // メンバーキャッシュを確実に取得
+    await guild.members.fetch();
+
     const pages = [
       {
         label: '基本情報',
@@ -35,10 +33,7 @@ export default {
           .addFields(
             { name: 'サーバー名', value: `\`\`\`${guild.name}\`\`\`` },
             { name: 'サーバーID', value: `\`\`\`${guild.id}\`\`\`` },
-            {
-              name: '作成日',
-              value: `\`\`\`${guild.createdAt.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}\`\`\``
-            },
+            { name: '作成日', value: `\`\`\`${guild.createdAt.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}\`\`\`` },
             { name: 'サーバー所有者', value: `<@${guild.ownerId}> (${guild.ownerId})` }
           )
           .setFooter({ text: `ページ 1 / 3` })
@@ -63,34 +58,23 @@ export default {
           .setTitle(`📂 チャンネル情報 - ${guild.name}`)
           .setColor(0xe67e22)
           .addFields(
-            { name: 'テキストチャンネル', value: `\`\`\`${guild.channels.cache.filter(c => c.type === 0).size}\`\`\`` },
-            { name: 'ボイスチャンネル', value: `\`\`\`${guild.channels.cache.filter(c => c.type === 2).size}\`\`\`` },
-            { name: 'カテゴリー', value: `\`\`\`${guild.channels.cache.filter(c => c.type === 4).size}\`\`\`` }
+            { name: 'テキストチャンネル', value: `\`\`\`${guild.channels.cache.filter(c => c.type === ChannelType.GuildText).size}\`\`\`` },
+            { name: 'ボイスチャンネル', value: `\`\`\`${guild.channels.cache.filter(c => c.type === ChannelType.GuildVoice).size}\`\`\`` },
+            { name: 'カテゴリー', value: `\`\`\`${guild.channels.cache.filter(c => c.type === ChannelType.GuildCategory).size}\`\`\`` }
           )
           .setFooter({ text: `ページ 3 / 3` })
       }
     ];
 
-    // セレクトメニュー作成
     const selectMenu = new StringSelectMenuBuilder()
       .setCustomId('server-info-select')
       .setPlaceholder('表示するページを選択')
-      .addOptions(
-        pages.map(p => ({
-          label: p.label,
-          value: p.value
-        }))
-      );
+      .addOptions(pages.map(p => ({ label: p.label, value: p.value })));
 
     const row = new ActionRowBuilder().addComponents(selectMenu);
 
-    // 初期メッセージ送信
-    const msg = await message.channel.send({
-      embeds: [pages[0].embed],
-      components: [row]
-    });
+    const msg = await message.channel.send({ embeds: [pages[0].embed], components: [row] });
 
-    // セレクトメニューイベント
     const collector = msg.createMessageComponentCollector({
       componentType: ComponentType.StringSelect,
       time: 120000
@@ -98,17 +82,11 @@ export default {
 
     collector.on('collect', async interaction => {
       if (interaction.user.id !== message.author.id) {
-        return interaction.reply({
-          content: 'このメニューはあなたは操作できません。',
-          ephemeral: true
-        });
+        return interaction.reply({ content: 'このメニューはあなたは操作できません。', ephemeral: true });
       }
       const selected = pages.find(p => p.value === interaction.values[0]);
       if (selected) {
-        await interaction.update({
-          embeds: [selected.embed],
-          components: [row]
-        });
+        await interaction.update({ embeds: [selected.embed], components: [row] });
       }
     });
 
