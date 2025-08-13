@@ -28,28 +28,26 @@ export default {
       return interaction.reply({ content: '⚠️ このコマンドはNSFWチャンネルでのみ使用できます。', flags: 64 });
     }
 
-    await interaction.deferReply();
+await interaction.deferReply({ flags: 64 }); // flags: 64 は ephemeral 相当
 
-    try {
-      const res = await fetch(`https://nekobot.xyz/api/image?type=${category}`);
-      const data = await res.json();
+try {
+  const res = await fetch(`https://nekobot.xyz/api/image?type=${category}`);
+  const data = await res.json();
 
-      if (!data || !data.message) {
-        return interaction.editReply('❌ 画像の取得に失敗しました。');
-      }
-
-      const embed = new EmbedBuilder()
-        .setTitle(`🖼 カテゴリ: ${category}`)
-        .setImage(data.message)
-        .setColor(0xff66aa)
-        .setFooter({ text: 'Powered by Nekobot API' })
-        .setTimestamp();
-
-      await interaction.editReply({ embeds: [embed] });
-
-    } catch (error) {
-      console.error(error);
-      await interaction.editReply('⚠️ エラーが発生しました。');
-    }
+  if (!data?.message) {
+    return interaction.editReply('❌ 画像の取得に失敗しました。');
   }
-};
+
+  const embed = new EmbedBuilder()
+    .setTitle(`🖼 カテゴリ: ${category}`)
+    .setImage(data.message)
+    .setColor(0xff66aa)
+    .setFooter({ text: 'Powered by Nekobot API' })
+    .setTimestamp();
+
+  await interaction.editReply({ embeds: [embed] });
+
+} catch (error) {
+  console.error(error);
+  await interaction.editReply('⚠️ エラーが発生しました。');
+}
