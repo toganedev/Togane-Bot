@@ -25,10 +25,10 @@ export default {
 
     // NSFWチャンネルチェック
     if (!interaction.channel.nsfw) {
-      return interaction.reply({ content: '⚠️ このコマンドはNSFWチャンネルでのみ使用できます。', flags: 64 });
+      return interaction.reply({ content: '⚠️ このコマンドはNSFWチャンネルでのみ使用できます。' });
     }
 
-    await interaction.deferReply({ flags: 64 }); // flags: 64 は ephemeral 相当
+    await interaction.deferReply(); // ← flags削除で全員に見える
 
     try {
       const res = await fetch(`https://nekobot.xyz/api/image?type=${category}`);
