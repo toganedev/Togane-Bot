@@ -32,35 +32,48 @@ export default {
     const targetUser = interaction.options.getUser('target');
     const reason = interaction.options.getString('reason');
 
+    // 最初に応答を予約（これで二重reply防止 & ephemeral警告回避）
+    await interaction.deferReply({ ephemeral: false });
+
     try {
       const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+
       if (!member) {
-        return interaction.reply({
-          content: '指定されたユーザーはこのサーバーにいません。',
-          ephemeral: true,
+        return interaction.editReply({
+          content: '❌ 指定されたユーザーはこのサーバーにいません。',
         });
       }
 
+      // 権限チェック（kickableでロール順位や権限不足を判定）
+      if (!member.kickable) {
+        return interaction.editReply({
+          content: '❌ このユーザーをキックする権限がありません。',
+        });
+      }
+
+      // キック実行
       await member.kick(reason);
 
       const japanTime = dayjs().tz('Asia/Tokyo').format('YYYY/MM/DD HH:mm');
 
-      // サーバー管理者にDM
+      // サーバー管理者にDM送信
       const owner = await interaction.guild.fetchOwner();
-      const embed = new EmbedBuilder()
+      const adminEmbed = new EmbedBuilder()
         .setTitle('👢 ユーザーキック通知')
         .setColor(0xffa500)
         .addFields(
-          { name: 'キック実行者', value: interaction.user.tag, inline: true },
-          { name: '対象ユーザー', value: `${targetUser.tag} (${targetUser.id})`, inline: true },
+          { name: 'キック実行者', value: `${interaction.user.tag} (${interaction.user.id})`, inline: false },
+          { name: '対象ユーザー', value: `${targetUser.tag} (${targetUser.id})`, inline: false },
           { name: '理由', value: reason, inline: false },
           { name: 'キック日時（日本時間）', value: japanTime, inline: false },
         )
         .setTimestamp();
 
-      await owner.send({ embeds: [embed] });
+      await owner.send({ embeds: [adminEmbed] }).catch(() => {
+        // オーナーのDMが閉じられている場合は無視
+      });
 
-      // 実行者にも通知
+      // 実行チャンネルに通知
       const replyEmbed = new EmbedBuilder()
         .setTitle('✅ キック完了')
         .setColor(0x00ff00)
@@ -68,15 +81,15 @@ export default {
         .addFields(
           { name: '理由', value: reason, inline: false },
           { name: '日時（日本時間）', value: japanTime, inline: false }
-        );
+        )
+        .setTimestamp();
 
-      await interaction.reply({ embeds: [replyEmbed], ephemeral: false });
+      await interaction.editReply({ embeds: [replyEmbed] });
 
     } catch (err) {
       console.error(err);
-      await interaction.reply({
-        content: 'キックに失敗しました。権限や入力を確認してください。',
-        ephemeral: true,
+      await interaction.editReply({
+        content: '❌ キックに失敗しました。権限や入力を確認してください。',
       });
     }
   },
