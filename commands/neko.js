@@ -28,11 +28,14 @@ export default {
       return interaction.reply({ content: '⚠️ このコマンドはNSFWチャンネルでのみ使用できます。' });
     }
 
-    await interaction.deferReply(); // ← flags削除で全員に見える
+    // 最初に即座にdeferReply（全員見れる）
+    await interaction.deferReply();
 
     try {
       const res = await fetch(`https://nekobot.xyz/api/image?type=${category}`);
       const data = await res.json();
+
+      console.log(data); // レスポンス確認用
 
       if (!data?.message) {
         return interaction.editReply('❌ 画像の取得に失敗しました。');
