@@ -40,25 +40,26 @@ export default {
       // 日本時間
       const japanTime = dayjs().tz('Asia/Tokyo').format('YYYY/MM/DD HH:mm');
 
-      // サーバー管理者にDM送信
-      const owner = await interaction.guild.fetchOwner();
+      // 共通のEmbed（管理者・実行者両方に送る）
       const embed = new EmbedBuilder()
         .setTitle('🚫 ユーザーBAN通知')
         .setColor(0xff0000)
         .addFields(
-          { name: 'BAN実行者', value: interaction.user.tag, inline: true },
-          { name: '対象ユーザー', value: `${userToBan.tag || '不明'} (${userToBan.id})`, inline: true },
+          { name: 'BAN実行者', value: `${interaction.user.tag} (${interaction.user.id})`, inline: false },
+          { name: '対象ユーザー', value: `${userToBan.tag || '不明'} (${userToBan.id})`, inline: false },
           { name: '理由', value: reason, inline: false },
           { name: 'BAN日時（日本時間）', value: japanTime, inline: false },
         )
         .setTimestamp();
 
-      await owner.send({ embeds: [embed] });
-
-      await interaction.reply({
-        content: `✅ ${userToBan.tag || 'ユーザー'} をBANしました。`,
-        ephemeral: false
+      // サーバー管理者にDM
+      const owner = await interaction.guild.fetchOwner();
+      await owner.send({ embeds: [embed] }).catch(() => {
+        console.warn('管理者へのDM送信に失敗しました。');
       });
+
+      // 実行者にもEmbedで返信
+      await interaction.reply({ embeds: [embed], ephemeral: false });
 
     } catch (err) {
       console.error(err);
