@@ -10,13 +10,10 @@ export default {
       await command.execute(interaction, client);
     } catch (error) {
       console.error(error);
-
-      // 既に応答済みなら編集、それ以外は新規返信
-      if (interaction.deferred || interaction.replied) {
-        await interaction.editReply({ content: '⚠️ エラーが発生しました。' });
-      } else {
+      if (!interaction.replied && !interaction.deferred) {
         await interaction.reply({ content: '⚠️ エラーが発生しました。' });
       }
+      // 応答済みなら何もしない
     }
   }
 };
