@@ -18,20 +18,19 @@ export default {
     const channel = await client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
     if (!channel) return;
 
+    // コードブロックで全体を囲む本文
+    const descriptionText = [
+      'Botが正常に起動しました。',
+      `起動時刻 (JST)`,
+      dayjs().tz('Asia/Tokyo').format('YYYY/MM/DD HH:mm:ss'),
+      `導入サーバー数`,
+      `${client.guilds.cache.size} サーバー`
+    ].join('\n');
+
     const embed = new EmbedBuilder()
       .setTitle('✅ BOT起動通知')
       .setColor(0x00ff00)
-      .setDescription('Botが正常に起動しました。')
-      .addFields(
-        {
-          name: '起動時刻 (JST)',
-          value: dayjs().tz('Asia/Tokyo').format('YYYY/MM/DD HH:mm:ss'),
-        },
-        {
-          name: '導入サーバー数',
-          value: `${client.guilds.cache.size} サーバー`,
-        }
-      )
+      .setDescription(codeBlock(descriptionText))
       .setFooter({ text: `Bot ID: ${client.user.id}` });
 
     await channel.send({ embeds: [embed] });
