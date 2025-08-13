@@ -7,14 +7,14 @@ export default {
     if (!command) return;
 
     try {
-      // client を第二引数として渡す
       await command.execute(interaction, client);
     } catch (error) {
       console.error(error);
-      if (interaction.deferred || interaction.replied) {
-        await interaction.editReply({ content: 'エラーが発生しました。' });
+      // すでに応答済みなら何もしない
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.reply({ content: 'エラーが発生しました。', flags: 64 }); // ephemeral
       } else {
-        await interaction.reply({ content: 'エラーが発生しました。', ephemeral: true });
+        await interaction.editReply({ content: 'エラーが発生しました。' });
       }
     }
   }
