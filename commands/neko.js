@@ -1,10 +1,10 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder } from 'discord.js';
 import fetch from 'node-fetch';
 
 export default {
   data: new SlashCommandBuilder()
     .setName('neko')
-    .setDescription('🔞 Nekobot APIから指定カテゴリの画像を取得します')
+    .setDescription('Nekobot APIから指定カテゴリの画像を取得します')
     .addStringOption(option =>
       option.setName('カテゴリ')
         .setDescription('取得する画像カテゴリ')
@@ -23,36 +23,24 @@ export default {
   async execute(interaction) {
     const category = interaction.options.getString('カテゴリ');
 
-    // NSFWチャンネルチェック
+    // NSFW チャンネルチェック
     if (!interaction.channel.nsfw) {
       return interaction.reply({ content: '⚠️ このコマンドはNSFWチャンネルでのみ使用できます。' });
     }
-
-    // 最初に即座にdeferReply（全員見れる）
-    await interaction.deferReply();
 
     try {
       const res = await fetch(`https://nekobot.xyz/api/image?type=${category}`);
       const data = await res.json();
 
-      console.log(data); // レスポンス確認用
-
       if (!data?.message) {
-        return interaction.editReply('❌ 画像の取得に失敗しました。');
+        return interaction.reply('❌ 画像の取得に失敗しました。');
       }
 
-      const embed = new EmbedBuilder()
-        .setTitle(`🔞 カテゴリ: ${category}`)
-        .setImage(data.message)
-        .setColor(0xff66aa)
-        .setFooter({ text: 'Powered by Nekobot API' })
-        .setTimestamp();
-
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.reply(`🖼 カテゴリ: **${category}**\n${data.message}`);
 
     } catch (error) {
       console.error(error);
-      await interaction.editReply('⚠️ エラーが発生しました。');
+      await interaction.reply('⚠️ エラーが発生しました。');
     }
   }
 };
