@@ -16,59 +16,62 @@ export default {
     .setDescription('指定したユーザーのBANを解除します')
     .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
     .addStringOption(option =>
-      option
-        .setName('user')
-        .setDescription('BANを解除するユーザー（@mention または ユーザーID）')
+      option.setName('userid')
+        .setDescription('BANを解除するユーザーのID')
         .setRequired(true)
     )
     .addStringOption(option =>
-      option
-        .setName('reason')
+      option.setName('reason')
         .setDescription('BAN解除理由')
         .setRequired(true)
     ),
 
   async execute(interaction) {
-    const userInput = interaction.options.getString('user');
+    const userId = interaction.options.getString('userid');
     const reason = interaction.options.getString('reason');
 
-    // mention形式ならIDを抽出、それ以外はそのまま
-    const userId = userInput.match(/^<@!?(\d+)>$/)?.[1] || userInput;
-
     try {
-      const user = await interaction.client.users.fetch(userId);
+      // 解除前にBAN情報を取得
+      const bannedUser = await interaction.guild.bans.fetch(userId).catch(() => null);
+
+      if (!bannedUser) {
+        return interaction.reply({
+          content: 'そのユーザーは現在BANされていません。',
+          ephemeral: true
+        });
+      }
 
       // BAN解除
-      await interaction.guild.members.unban(user.id, reason);
+      await interaction.guild.bans.remove(userId, reason);
 
       // 日本時間
       const japanTime = dayjs().tz('Asia/Tokyo').format('YYYY/MM/DD HH:mm');
 
-      // 共通のEmbed（管理者・実行者両方に使う）
+      // Embed作成
       const embed = new EmbedBuilder()
-        .setTitle('✅ ユーザーBAN解除')
+        .setTitle('✅ ユーザーBAN解除通知')
         .setColor(0x00ff00)
         .addFields(
-          { name: '解除実行者', value: `${interaction.user.tag} (${interaction.user.id})`, inline: false },
-          { name: '対象ユーザー', value: `${user.tag} (${user.id})`, inline: false },
+          { name: '解除実行者', value: interaction.user.tag, inline: true },
+          { name: '対象ユーザー', value: `${bannedUser.user.tag} (${bannedUser.user.id})`, inline: true },
           { name: '理由', value: reason, inline: false },
           { name: '解除日時（日本時間）', value: japanTime, inline: false },
         )
         .setTimestamp();
 
-      // サーバー管理者にDM送信
+      // 管理者にDM送信
       const owner = await interaction.guild.fetchOwner();
       await owner.send({ embeds: [embed] }).catch(() => {
         console.warn('管理者へのDM送信に失敗しました。');
       });
 
-      // 実行者にも同じEmbedで返信
-      await interaction.reply({ embeds: [embed], ephemeral: false });
+      // コマンド実行者にも返信
+      await interaction.reply({ embeds: [embed] });
 
     } catch (err) {
       console.error(err);
       await interaction.reply({
-        content: 'BAN解除に失敗しました。ユーザーIDや権限を確認してください。',
+        content: 'BAN解除に失敗しました。権限や入力を確認してください。',
         ephemeral: true
       });
     }
