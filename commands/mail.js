@@ -1,126 +1,72 @@
 // commands/mail.js
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import fetch from 'node-fetch';
-import dotenv from 'dotenv';
-dotenv.config();
+import { SlashCommandBuilder } from 'discord.js';
+import axios from 'axios';
+import { CookieJar } from 'tough-cookie';
+import { wrapper } from 'axios-cookiejar-support';
 
-// メール作成関数（解析強化版）
-async function createMail(sessionHash, domain = "eay.jp", address = "") {
-  // 1. CSRFトークン取得
-  const csrfRes = await fetch("https://m.kuku.lu/index.php", {
-    headers: {
-      "User-Agent": "Mozilla/5.0",
-      "Cookie": `cookie_sessionhash=${sessionHash}`
-    }
+const jar = new CookieJar();
+const client = wrapper(axios.create({
+  jar,
+  withCredentials: true,
+  headers: {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
+  }
+}));
+
+const SESSION_HASH = process.env.KUKULU_SESSION_HASH; // .env に保存推奨
+
+async function createMail(domain, address = '') {
+  // 1. kukulu にアクセスして CSRF トークン取得
+  await client.get('https://m.kuku.lu/index.php', {
+    headers: { 'Cookie': `cookie_sessionhash=${SESSION_HASH}` }
   });
 
-  const setCookie = csrfRes.headers.get("set-cookie") || "";
-  const csrfTokenMatch = setCookie.match(/cookie_csrf_token=([^;]+)/);
-  if (!csrfTokenMatch) throw new Error("CSRFトークン取得失敗");
-  const csrfToken = csrfTokenMatch[1];
+  const cookies = await jar.getCookies('https://m.kuku.lu');
+  const csrfToken = cookies.find(c => c.key === 'cookie_csrf_token')?.value;
 
-  // 2. メール作成リクエスト
+  if (!csrfToken) throw new Error('CSRFトークン取得失敗');
+
+  // 2. メール作成
   const url = `https://m.kuku.lu/index.php?action=addMailAddrByManual&nopost=1&by_system=1&t=&csrf_token_check=${csrfToken}&newdomain=${domain}&newuser=${address}&recaptcha_token=&_=`;  
-
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0",
-      "Cookie": `cookie_sessionhash=${sessionHash}`
-    }
+  const res = await client.get(url, {
+    headers: { 'Cookie': `cookie_sessionhash=${SESSION_HASH}` }
   });
 
-  const text = await res.text();
-
-  // デバッグ用（本番は消すかコメントアウト）
-  console.log("=== kuku.lu response start ===");
-  console.log(text);
-  console.log("=== kuku.lu response end ===");
-
-  // 3. 複数パターンでアドレス抽出
-  let email = null;
-  let pass = null;
-  let loginpass = null;
-
-  // hidden inputパターン
-  let matchMail = text.match(/value="([^"]+@[^"]+)"/);
-  if (matchMail) email = matchMail[1];
-
-  // Data("xxxx@xxx")パターン
-  if (!email) {
-    matchMail = text.match(/Data\("([^"]+@[^"]+)"\)/);
-    if (matchMail) email = matchMail[1];
+  if (!res.data.includes('@')) {
+    console.log('=== kuku.lu response start ===');
+    console.log(res.data);
+    console.log('=== kuku.lu response end ===');
+    throw new Error('メール作成失敗（解析エラー）');
   }
 
-  // シンプルメール正規表現パターン
-  if (!email) {
-    matchMail = text.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
-    if (matchMail) email = matchMail[0];
-  }
-
-  pass = (text.match(/name="pass"[^>]*value="([^"]*)"/) || [])[1] || "不明";
-  loginpass = (text.match(/name="loginpass"[^>]*value="([^"]*)"/) || [])[1] || "不明";
-
-  if (!email) throw new Error("メール作成失敗（解析エラー）");
-
-  return { email, pass, loginpass };
+  return res.data.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)[0];
 }
 
 export default {
   data: new SlashCommandBuilder()
     .setName('メール作成')
-    .setDescription('捨てアドぽいぽいで新規メールアドレスを作成'),
-
+    .setDescription('kukuluLIVEで新しい捨てメアドを作成します')
+    .addStringOption(option =>
+      option.setName('ドメイン')
+        .setDescription('例: eay.jp')
+        .setRequired(true))
+    .addStringOption(option =>
+      option.setName('ユーザー名')
+        .setDescription('任意: 指定しない場合はランダム')
+        .setRequired(false)),
+  
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: 64 }); // ephemeral の代替
+
+    const domain = interaction.options.getString('ドメイン');
+    const username = interaction.options.getString('ユーザー名') || '';
 
     try {
-      const sessionHashes = [
-        process.env.SESSION_HASH_1,
-        process.env.SESSION_HASH_2,
-        process.env.SESSION_HASH_3,
-        process.env.SESSION_HASH_4,
-        process.env.SESSION_HASH_5,
-        process.env.SESSION_HASH_6
-      ].filter(Boolean);
-
-      if (sessionHashes.length === 0) {
-        return interaction.editReply('SESSION_HASHが設定されていません。');
-      }
-
-      // ランダムに選択
-      const sessionHash = sessionHashes[Math.floor(Math.random() * sessionHashes.length)];
-
-      // メール作成
-      const { email, pass, loginpass } = await createMail(sessionHash);
-
-      const embed = new EmbedBuilder()
-        .setTitle('📧 メールアドレス作成完了')
-        .setColor(0x3498db)
-        .addFields(
-          { name: 'メールアドレス', value: email, inline: false },
-          { name: 'パスワード', value: pass, inline: false },
-          { name: 'ログインパス', value: loginpass, inline: false }
-        )
-        .setTimestamp();
-
-      // 実行者にDM
-      try {
-        await interaction.user.send({ embeds: [embed] });
-      } catch {
-        await interaction.followUp({ content: '⚠️ 実行者へのDM送信に失敗しました。', ephemeral: true });
-      }
-
-      // 管理者にDM
-      try {
-        const adminUser = await interaction.client.users.fetch('1401421639106957464');
-        await adminUser.send({ embeds: [embed] });
-      } catch {}
-
-      await interaction.editReply('✅ メールアドレスを作成し、DMに送信しました。');
-
+      const mailAddress = await createMail(domain, username);
+      await interaction.editReply({ content: `✅ 新しいメールアドレスを作成しました:\n\`${mailAddress}\`` });
     } catch (err) {
-      console.error("❌ エラー:", err);
-      await interaction.editReply(`❌ エラー: ${err.message || '不明なエラー'}`);
+      console.error('❌ エラー:', err);
+      await interaction.editReply({ content: `❌ エラー: ${err.message}` });
     }
   }
 };
