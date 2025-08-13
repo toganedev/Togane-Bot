@@ -1,11 +1,10 @@
 import {
   SlashCommandBuilder,
   EmbedBuilder,
+  PermissionFlagsBits,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle,
-  PermissionFlagsBits,
-  ComponentType,
+  ButtonStyle
 } from 'discord.js';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
@@ -14,17 +13,27 @@ import timezone from 'dayjs/plugin/timezone.js';
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-function formatDuration(seconds) {
-  if (seconds < 60) return `${seconds}秒`;
-  if (seconds < 3600) return `${seconds / 60}分`;
-  if (seconds < 86400) return `${seconds / 3600}時間`;
-  return `${seconds / 86400}日`;
+function formatDurationVerbose(ms) {
+  let seconds = Math.floor(ms / 1000);
+  const days = Math.floor(seconds / 86400);
+  seconds %= 86400;
+  const hours = Math.floor(seconds / 3600);
+  seconds %= 3600;
+  const minutes = Math.floor(seconds / 60);
+  seconds %= 60;
+
+  let parts = [];
+  if (days) parts.push(`${days}日`);
+  if (hours) parts.push(`${hours}時間`);
+  if (minutes) parts.push(`${minutes}分`);
+  if (seconds) parts.push(`${seconds}秒`);
+  return parts.join(' ') || '0秒';
 }
 
 export default {
   data: new SlashCommandBuilder()
     .setName('untimeout')
-    .setDescription('ユーザーのタイムアウトを解除します')
+    .setDescription('指定したユーザーのタイムアウトを解除します')
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .addUserOption(option =>
       option.setName('target').setDescription('対象ユーザー').setRequired(true)
@@ -42,87 +51,85 @@ export default {
       return interaction.reply({ content: 'このユーザーはサーバーにいません。', ephemeral: true });
     }
 
-    // タイムアウトされていない場合
-    if (!member.communicationDisabledUntilTimestamp || member.communicationDisabledUntilTimestamp < Date.now()) {
-      const embed = new EmbedBuilder()
-        .setTitle('ℹ️ タイムアウト情報')
-        .setColor(0x00aaff)
+    // BOTが操作できるか事前確認
+    if (!member.moderatable) {
+      const errorEmbed = new EmbedBuilder()
+        .setTitle('⚠️ 解除失敗')
+        .setColor(0xff0000)
         .addFields(
           { name: '対象者', value: `${targetUser.tag} (${targetUser.id})` },
-          { name: '状態', value: 'タイムアウトされていません' },
+          { name: '理由', value: 'BOTのロール位置または権限不足のため、このユーザーを操作できません。' }
         );
-      return interaction.reply({ embeds: [embed], ephemeral: false });
+      return interaction.reply({ embeds: [errorEmbed], ephemeral: false });
+    }
+
+    const currentTimeout = member.communicationDisabledUntil;
+    if (!currentTimeout || dayjs(currentTimeout).isBefore(dayjs())) {
+      const noTimeoutEmbed = new EmbedBuilder()
+        .setTitle('ℹ️ タイムアウトされていません')
+        .setColor(0x3498db)
+        .addFields({ name: '対象者', value: `${targetUser.tag} (${targetUser.id})` });
+      return interaction.reply({ embeds: [noTimeoutEmbed], ephemeral: false });
     }
 
     // 残り時間計算
-    const remaining = Math.floor((member.communicationDisabledUntilTimestamp - Date.now()) / 1000);
-    const endTime = dayjs(member.communicationDisabledUntilTimestamp).tz('Asia/Tokyo').format('YYYY/MM/DD HH:mm:ss');
+    const now = dayjs();
+    const end = dayjs(currentTimeout);
+    const remainingMs = end.diff(now);
+    const remainingFormatted = formatDurationVerbose(remainingMs);
+
+    // 確認ボタン
+    const confirmButton = new ButtonBuilder()
+      .setCustomId('confirm_untimeout')
+      .setLabel('解除する')
+      .setStyle(ButtonStyle.Danger);
+
+    const cancelButton = new ButtonBuilder()
+      .setCustomId('cancel_untimeout')
+      .setLabel('キャンセル')
+      .setStyle(ButtonStyle.Secondary);
+
+    const row = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
 
     const confirmEmbed = new EmbedBuilder()
       .setTitle('⏳ タイムアウト解除確認')
       .setColor(0xffcc00)
       .addFields(
         { name: '対象者', value: `${targetUser.tag} (${targetUser.id})` },
-        { name: '残り時間', value: `${remaining}秒（解除予定: ${endTime} JST）` },
-        { name: '理由', value: reason },
+        { name: '残り時間', value: remainingFormatted },
+        { name: '解除理由', value: reason }
       );
 
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('confirm_untimeout')
-        .setLabel('解除する')
-        .setStyle(ButtonStyle.Danger),
-      new ButtonBuilder()
-        .setCustomId('cancel_untimeout')
-        .setLabel('キャンセル')
-        .setStyle(ButtonStyle.Secondary),
-    );
+    await interaction.reply({ embeds: [confirmEmbed], components: [row], ephemeral: true });
 
-    const replyMsg = await interaction.reply({ embeds: [confirmEmbed], components: [row], ephemeral: false });
-
-    // ボタン待機
-    const collector = replyMsg.createMessageComponentCollector({
-      componentType: ComponentType.Button,
-      time: 15000,
+    // ボタン操作待機
+    const collector = interaction.channel.createMessageComponentCollector({
+      filter: i => i.user.id === interaction.user.id,
+      time: 15000
     });
 
-    collector.on('collect', async (btnInteraction) => {
-      if (btnInteraction.user.id !== interaction.user.id) {
-        return btnInteraction.reply({ content: 'この操作はあなたが実行できません。', ephemeral: true });
-      }
-
-      if (btnInteraction.customId === 'cancel_untimeout') {
-        await btnInteraction.update({ content: '⛔ 解除をキャンセルしました。', embeds: [], components: [] });
-        collector.stop();
-      }
-
-      if (btnInteraction.customId === 'confirm_untimeout') {
-        await member.timeout(null, reason); // 解除
+    collector.on('collect', async i => {
+      if (i.customId === 'confirm_untimeout') {
+        await member.timeout(null, reason);
 
         const logEmbed = new EmbedBuilder()
           .setTitle('✅ タイムアウト解除')
-          .setColor(0x00cc66)
+          .setColor(0x2ecc71)
           .addFields(
             { name: '実行者', value: interaction.user.tag, inline: true },
             { name: '対象者', value: `${targetUser.tag} (${targetUser.id})`, inline: true },
             { name: '理由', value: reason },
-            { name: '解除時刻（JST）', value: dayjs().tz('Asia/Tokyo').format('YYYY/MM/DD HH:mm:ss') },
+            { name: '解除時刻（JST）', value: dayjs().tz('Asia/Tokyo').format('YYYY/MM/DD HH:mm:ss') }
           );
 
-        await btnInteraction.update({ embeds: [logEmbed], components: [] });
+        await i.update({ embeds: [logEmbed], components: [] });
 
-        // サーバー管理者にDM
+        // 管理者DM
         const owner = await interaction.guild.fetchOwner();
         await owner.send({ embeds: [logEmbed] }).catch(() => null);
-
-        collector.stop();
+      } else if (i.customId === 'cancel_untimeout') {
+        await i.update({ content: 'キャンセルしました。', embeds: [], components: [] });
       }
     });
-
-    collector.on('end', async (_, reason) => {
-      if (reason === 'time') {
-        await replyMsg.edit({ content: '⏰ 時間切れのため解除確認を終了しました。', components: [] });
-      }
-    });
-  },
+  }
 };
