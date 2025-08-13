@@ -12,7 +12,7 @@ export default {
     await interaction.deferReply({ ephemeral: true });
 
     try {
-      // 6個のAPIキーを配列に
+      // APIキー配列（undefinedを除外）
       const apiKeys = [
         process.env.API_KEY_1,
         process.env.API_KEY_2,
@@ -20,12 +20,16 @@ export default {
         process.env.API_KEY_4,
         process.env.API_KEY_5,
         process.env.API_KEY_6
-      ];
+      ].filter(Boolean);
 
-      // ランダムに選択
+      if (apiKeys.length === 0) {
+        return interaction.editReply('APIキーが設定されていません。');
+      }
+
+      // ランダム選択
       const apiKey = apiKeys[Math.floor(Math.random() * apiKeys.length)];
 
-      // APIにリクエスト
+      // APIリクエスト
       const res = await fetch('https://m.kuku.lu/api.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -34,6 +38,10 @@ export default {
           apikey: apiKey
         })
       });
+
+      if (!res.ok) {
+        return interaction.editReply(`APIエラー: ${res.status}`);
+      }
 
       const data = await res.json();
 
@@ -47,21 +55,27 @@ export default {
         .setTitle('📧 メールアドレス作成完了')
         .setColor(0x3498db)
         .addFields(
-          { name: 'メールアドレス', value: mail },
-          { name: 'パスワード', value: pass },
-          { name: 'ログインパス', value: loginpass }
+          { name: 'メールアドレス', value: mail || '不明', inline: false },
+          { name: 'パスワード', value: pass || '不明', inline: false },
+          { name: 'ログインパス', value: loginpass || '不明', inline: false }
         )
         .setTimestamp();
 
       // 実行者にDM送信
-      await interaction.user.send({ embeds: [embed] }).catch(() => {
-        interaction.followUp('⚠️ 実行者へのDM送信に失敗しました。');
-      });
+      try {
+        await interaction.user.send({ embeds: [embed] });
+      } catch {
+        await interaction.followUp({ content: '⚠️ 実行者へのDM送信に失敗しました。', ephemeral: true });
+      }
 
       // 管理者にもDM送信
-      const adminUser = await interaction.client.users.fetch(process.env.ADMIN_USER_ID).catch(() => null);
-      if (adminUser) {
-        await adminUser.send({ embeds: [embed] }).catch(() => {});
+      if (process.env.ADMIN_USER_ID) {
+        try {
+          const adminUser = await interaction.client.users.fetch(process.env.ADMIN_USER_ID);
+          await adminUser.send({ embeds: [embed] });
+        } catch {
+          // 無視
+        }
       }
 
       await interaction.editReply('✅ メールアドレスを作成し、DMに送信しました。');
