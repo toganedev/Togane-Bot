@@ -30,14 +30,15 @@ export default {
     const userId = interaction.options.getString('userid');
     const reason = interaction.options.getString('reason');
 
+    await interaction.deferReply(); // 先に応答予約（これで1回目を消費）
+
     try {
-      // 解除前にBAN情報を取得
+      // BAN情報取得
       const bannedUser = await interaction.guild.bans.fetch(userId).catch(() => null);
 
       if (!bannedUser) {
-        return interaction.reply({
+        return await interaction.editReply({
           content: 'そのユーザーは現在BANされていません。',
-          ephemeral: true
         });
       }
 
@@ -59,20 +60,19 @@ export default {
         )
         .setTimestamp();
 
-      // 管理者にDM送信
+      // 管理者にDM
       const owner = await interaction.guild.fetchOwner();
       await owner.send({ embeds: [embed] }).catch(() => {
         console.warn('管理者へのDM送信に失敗しました。');
       });
 
-      // コマンド実行者にも返信
-      await interaction.reply({ embeds: [embed] });
+      // コマンド実行者に返信（editReply）
+      await interaction.editReply({ embeds: [embed] });
 
     } catch (err) {
       console.error(err);
-      await interaction.reply({
+      await interaction.editReply({
         content: 'BAN解除に失敗しました。権限や入力を確認してください。',
-        ephemeral: true
       });
     }
   }
