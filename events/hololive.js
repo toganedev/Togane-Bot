@@ -52,6 +52,6 @@ export default {
       } catch (err) {
         console.error('Hololive fetch error:', err);
       }
-    }, 10000); // 10秒ごとにチェック
+    }, 300000); // 10秒ごとにチェック
   }
 };
