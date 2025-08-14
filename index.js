@@ -25,103 +25,68 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// ======= メイン処理を async 関数にまとめる =======
-(async () => {
-  // ======= コマンドの読み込み =======
-  const commandsPath = path.join(__dirname, 'commands');
-  const commandData = [];
+// ======= コマンドの読み込みと登録 =======
+const commandsPath = path.join(__dirname, 'commands');
+const commandData = [];
 
-  if (fs.existsSync(commandsPath)) {
-    const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+if (fs.existsSync(commandsPath)) {
+  const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
-    await Promise.all(
-      commandFiles.map(async (file) => {
-        try {
-          const filePath = path.join(commandsPath, file);
-          const commandModule = await import(`file://${filePath}`);
-          const command = commandModule.default;
+  for (const file of commandFiles) {
+    const filePath = path.join(commandsPath, file);
+    const command = (await import(`file://${filePath}`)).default;
 
-          if (command?.data?.name && command?.execute) {
-            client.commands.set(command.data.name, command);
-            commandData.push(command.data.toJSON());
-          } else {
-            console.warn(`⚠ コマンドファイル "${file}" に data または execute がありません`);
-          }
-        } catch (err) {
-          console.error(`❌ コマンド "${file}" の読み込みに失敗:`, err);
-        }
-      })
-    );
-  } else {
-    console.warn('⚠ commands フォルダが存在しません');
+    if (command?.data?.name && command?.execute) {
+      client.commands.set(command.data.name, command);
+      commandData.push(command.data.toJSON());
+    }
   }
+}
 
-  // ======= RESTクライアント設定 =======
-  const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-  const guildId = '1401426537231814767';
+// ======= グローバルコマンドの登録処理 =======
+const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
-  // ======= コマンド登録処理 =======
+(async () => {
   try {
-    console.log('⚡ ギルドコマンド登録中...');
-    await rest.put(
-      Routes.applicationGuildCommands(process.env.CLIENT_ID, guildId),
-      { body: commandData }
-    );
-    console.log('✅ ギルドコマンド登録完了（即時反映）');
+    console.log('🧹 グローバルコマンドの削除...');
+    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: [] });
 
-    console.log('🌍 グローバルコマンド登録中...');
-    await rest.put(
-      Routes.applicationCommands(process.env.CLIENT_ID),
-      { body: commandData }
-    );
-    console.log('🎉 グローバルコマンド登録完了（最大1時間反映）');
+    console.log('✅ コマンドを再登録中...');
+    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), {
+      body: commandData,
+    });
 
+    console.log('🎉 グローバルコマンド登録完了！');
   } catch (error) {
     console.error('❌ コマンド登録エラー:', error);
   }
-
-  // ======= イベントの読み込み =======
-  const eventsPath = path.join(__dirname, 'events');
-
-  if (fs.existsSync(eventsPath)) {
-    const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
-
-    await Promise.all(
-      eventFiles.map(async (file) => {
-        try {
-          const filePath = path.join(eventsPath, file);
-          const eventModule = await import(`file://${filePath}`);
-          const event = eventModule.default;
-
-          if (event?.name && typeof event.execute === 'function') {
-            client[event.once ? 'once' : 'on'](
-              event.name,
-              (...args) => event.execute(...args, client)
-            );
-          } else {
-            console.warn(`⚠ イベントファイル "${file}" に name または execute がありません`);
-          }
-        } catch (err) {
-          console.error(`❌ イベント "${file}" の読み込みに失敗:`, err);
-        }
-      })
-    );
-  } else {
-    console.warn('⚠ events フォルダが存在しません');
-  }
-
-  // ======= Bot起動 =======
-  client.login(process.env.DISCORD_TOKEN);
-
-  // ======= Expressサーバー起動（Renderのポートバインド用） =======
-  const app = express();
-  const PORT = process.env.PORT || 3000;
-
-  app.get('/', (_req, res) => {
-    res.send('Bot is running!');
-  });
-
-  app.listen(PORT, () => {
-    console.log(`🌐 Express server is listening on port ${PORT}`);
-  });
 })();
+
+// ======= イベントの読み込み =======
+const eventsPath = path.join(__dirname, 'events');
+if (fs.existsSync(eventsPath)) {
+  const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
+
+  for (const file of eventFiles) {
+    const filePath = path.join(eventsPath, file);
+    const event = (await import(`file://${filePath}`)).default;
+    if (event?.name && typeof event.execute === 'function') {
+      client[event.once ? 'once' : 'on'](event.name, (...args) => event.execute(...args, client)); // ← 修正済み
+    }
+  }
+}
+
+// ======= Bot起動 =======
+client.login(process.env.DISCORD_TOKEN);
+
+// ======= Expressサーバー起動（Renderのポートバインド用） =======
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.get('/', (_req, res) => {
+  res.send('Bot is running!');
+});
+
+app.listen(PORT, () => {
+  console.log(`🌐 Express server is listening on port ${PORT}`);
+});
