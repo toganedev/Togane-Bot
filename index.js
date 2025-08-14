@@ -25,7 +25,7 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// ======= コマンドの読み込みと登録 =======
+// ======= コマンドの読み込み =======
 const commandsPath = path.join(__dirname, 'commands');
 const commandData = [];
 
@@ -43,20 +43,27 @@ if (fs.existsSync(commandsPath)) {
   }
 }
 
-// ======= グローバルコマンドの登録処理 =======
+// ======= RESTクライアント設定 =======
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+const guildId = '1401426537231814767';
 
+// ======= コマンド登録処理 =======
 (async () => {
   try {
-    console.log('🧹 グローバルコマンドの削除...');
-    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: [] });
+    console.log('⚡ ギルドコマンド登録中...');
+    await rest.put(
+      Routes.applicationGuildCommands(process.env.CLIENT_ID, guildId),
+      { body: commandData }
+    );
+    console.log('✅ ギルドコマンド登録完了（即時反映）');
 
-    console.log('✅ コマンドを再登録中...');
-    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), {
-      body: commandData,
-    });
+    console.log('🌍 グローバルコマンド登録中...');
+    await rest.put(
+      Routes.applicationCommands(process.env.CLIENT_ID),
+      { body: commandData }
+    );
+    console.log('🎉 グローバルコマンド登録完了（最大1時間反映）');
 
-    console.log('🎉 グローバルコマンド登録完了！');
   } catch (error) {
     console.error('❌ コマンド登録エラー:', error);
   }
@@ -71,7 +78,7 @@ if (fs.existsSync(eventsPath)) {
     const filePath = path.join(eventsPath, file);
     const event = (await import(`file://${filePath}`)).default;
     if (event?.name && typeof event.execute === 'function') {
-      client[event.once ? 'once' : 'on'](event.name, (...args) => event.execute(...args, client)); // ← 修正済み
+      client[event.once ? 'once' : 'on'](event.name, (...args) => event.execute(...args, client));
     }
   }
 }
