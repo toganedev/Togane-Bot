@@ -6,6 +6,7 @@ import {
 } from '@discordjs/voice';
 import { SlashCommandBuilder } from 'discord.js';
 import fetch from 'node-fetch';
+import ffmpeg from 'ffmpeg-static';
 
 const ALLOWED_USER_ID = '1401421639106957464';
 const GITHUB_API_URL = 'https://api.github.com/repos/toganedev/D/contents/';
@@ -13,7 +14,7 @@ const GITHUB_API_URL = 'https://api.github.com/repos/toganedev/D/contents/';
 export default {
   data: new SlashCommandBuilder()
     .setName('play')
-    .setDescription('GitHubリポジトリから曲をランダム再生'),
+    .setDescription('GitHubリポジトリの曲をランダム再生'),
 
   async execute(interaction) {
     if (interaction.user.id !== ALLOWED_USER_ID) {
@@ -25,7 +26,7 @@ export default {
       return interaction.reply({ content: 'ボイスチャンネルに参加してください。', ephemeral: true });
     }
 
-    // GitHub APIから曲ファイル一覧を取得
+    // GitHub APIから曲一覧取得
     const res = await fetch(GITHUB_API_URL);
     const files = await res.json();
 
@@ -47,9 +48,11 @@ export default {
 
     const playRandomSong = () => {
       const url = songUrls[Math.floor(Math.random() * songUrls.length)];
-      const resource = createAudioResource(url, { inlineVolume: true });
-      player.play(resource);
       console.log(`🎵 Now playing: ${url}`);
+      const resource = createAudioResource(url, {
+        inlineVolume: true
+      });
+      player.play(resource);
     };
 
     player.on(AudioPlayerStatus.Idle, () => {
