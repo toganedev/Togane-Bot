@@ -6,9 +6,8 @@ export default {
     .setDescription('入れてほしい曲をリクエストします'),
 
   async execute(interaction) {
-    // モーダル作成
     const modal = new ModalBuilder()
-      .setCustomId('music-request') // 統一
+      .setCustomId('music-request')
       .setTitle('🎵 曲リクエストフォーム');
 
     const titleInput = new TextInputBuilder()
