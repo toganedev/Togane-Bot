@@ -94,31 +94,23 @@ client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
+console.log("🚀 Logging in...");
 client.login(process.env.DISCORD_TOKEN)
   .then(() => console.log("🚀 Bot login success"))
   .catch(err => {
     console.error('❌ Bot login failed:', err);
-    process.exit(1); // エラー終了でRenderが再起動
+    process.exit(1); // Renderで自動再起動
   });
 
 // ======= エラー監視 =======
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason) => {
   console.error('[Unhandled Rejection]', reason);
   process.exit(1);
 });
 
-process.on('uncaughtException', err => {
+process.on('uncaughtException', (err) => {
   console.error('[Uncaught Exception]', err);
   process.exit(1);
-});
-
-
-// 環境変数読み込みチェック
-console.log("🔍 DISCORD_TOKEN:", process.env.DISCORD_TOKEN ? "Loaded ✅" : "Missing ❌");
-console.log("🔍 CLIENT_ID:", process.env.CLIENT_ID ? "Loaded ✅" : "Missing ❌");
-
-client.login(process.env.DISCORD_TOKEN).catch(err => {
-  console.error('❌ Bot login failed:', err);
 });
 
 // ======= Expressサーバー起動（Renderのポートバインド用） =======
