@@ -3,6 +3,7 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus } from '@discordjs/voice';
 import fetch from 'node-fetch';
 
+const GITHUB_API_URL = 'https://api.github.com/repos/toganedev/D/contents/';
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/toganedev/D/main/';
 
 export default {
@@ -17,8 +18,12 @@ export default {
     async execute(interaction) {
         const title = interaction.options.getString('title');
 
-        // まずVCにいるか確認
-        const channel = interaction.member.voice.channel;
+        // VC取得
+        let member = interaction.member;
+        if (!member.voice || !member.voice.channel) {
+            member = await interaction.guild.members.fetch(interaction.user.id);
+        }
+        const channel = member.voice.channel;
         if (!channel) {
             return interaction.reply({
                 embeds: [new EmbedBuilder()
@@ -31,32 +36,41 @@ export default {
 
         await interaction.deferReply();
 
-        // ファイル名を決定
-        let fileName;
+        let fileName, fileUrl;
+
         if (title) {
-            fileName = `${encodeURIComponent(title)}.mp4`; // まずmp4想定
-        } else {
-            // ランダム再生（ファイル一覧は事前に作る必要あり）
-            const files = ['song1.mp4', 'song2.m4a']; // 仮
-            fileName = files[Math.floor(Math.random() * files.length)];
-        }
-
-        // mp4がなければm4aを試す
-        let fileUrl = `${GITHUB_RAW_BASE}${fileName}`;
-        let res = await fetch(fileUrl, { method: 'HEAD' });
-        if (!res.ok && title) {
-            fileName = `${encodeURIComponent(title)}.m4a`;
+            // タイトル指定
+            fileName = `${encodeURIComponent(title)}.mp4`;
+            let res = await fetch(`${GITHUB_RAW_BASE}${fileName}`, { method: 'HEAD' });
+            if (!res.ok) {
+                fileName = `${encodeURIComponent(title)}.m4a`;
+                res = await fetch(`${GITHUB_RAW_BASE}${fileName}`, { method: 'HEAD' });
+            }
+            if (!res.ok) {
+                return interaction.editReply({
+                    embeds: [new EmbedBuilder()
+                        .setColor(0xff0000)
+                        .setTitle('❌ 曲が見つかりません')
+                        .setDescription(`\`${title}\` は存在しません。`)]
+                });
+            }
             fileUrl = `${GITHUB_RAW_BASE}${fileName}`;
-            res = await fetch(fileUrl, { method: 'HEAD' });
-        }
-
-        if (!res.ok) {
-            return interaction.editReply({
-                embeds: [new EmbedBuilder()
-                    .setColor(0xff0000)
-                    .setTitle('❌ 再生できません')
-                    .setDescription(`曲が見つかりません: \`${title ?? 'ランダム曲'}\``)]
-            });
+        } else {
+            // ランダム再生
+            const listRes = await fetch(GITHUB_API_URL);
+            const files = await listRes.json();
+            const audioFiles = files.filter(f => f.type === 'file' && (f.name.endsWith('.mp4') || f.name.endsWith('.m4a')));
+            if (audioFiles.length === 0) {
+                return interaction.editReply({
+                    embeds: [new EmbedBuilder()
+                        .setColor(0xff0000)
+                        .setTitle('❌ 曲が見つかりません')
+                        .setDescription('ランダムで再生できる曲がありません。')]
+                });
+            }
+            const randomFile = audioFiles[Math.floor(Math.random() * audioFiles.length)];
+            fileName = randomFile.name;
+            fileUrl = `${GITHUB_RAW_BASE}${fileName}`;
         }
 
         // 再生処理
@@ -68,7 +82,6 @@ export default {
 
         const player = createAudioPlayer();
         const resource = createAudioResource(fileUrl);
-
         player.play(resource);
         connection.subscribe(player);
 
