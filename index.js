@@ -100,3 +100,12 @@ app.get('/', (_req, res) => {
 app.listen(PORT, () => {
   console.log(`🌐 Express server is listening on port ${PORT}`);
 });
+
+// ======= エラー監視（落ちる原因を特定するため） =======
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Unhandled Rejection]', reason);
+});
+
+process.on('uncaughtException', err => {
+  console.error('[Uncaught Exception]', err);
+});
