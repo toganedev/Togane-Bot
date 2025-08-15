@@ -4,7 +4,7 @@ export default {
   name: Events.InteractionCreate,
   async execute(interaction) {
     if (!interaction.isModalSubmit()) return;
-    if (interaction.customId !== 'music-request') return; // 統一ID
+    if (interaction.customId !== 'music-request') return;
 
     const title = interaction.fields.getTextInputValue('title');
     const url = interaction.fields.getTextInputValue('url');
@@ -19,7 +19,7 @@ export default {
       return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
 
-    // 日本時間（UTC+9）
+    // JST時間
     const nowJST = new Date(Date.now() + 9 * 60 * 60 * 1000);
     const formattedTime = nowJST.toISOString().replace('T', ' ').split('.')[0] + ' (JST)';
 
@@ -36,6 +36,16 @@ export default {
       .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
       .setTimestamp();
 
-    await interaction.reply({ embeds: [embed] });
+    // 指定チャンネルに送信
+    const targetChannelId = '1401421639106957464';
+    const channel = await interaction.client.channels.fetch(targetChannelId);
+    if (!channel) {
+      return interaction.reply({ content: '❌ リクエスト送信先チャンネルが見つかりません。', ephemeral: true });
+    }
+
+    await channel.send({ embeds: [embed] });
+
+    // ユーザーには完了メッセージ
+    await interaction.reply({ content: '✅ リクエストを送信しました！', ephemeral: true });
   }
 };
