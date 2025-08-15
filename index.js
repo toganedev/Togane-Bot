@@ -87,9 +87,15 @@ if (fs.existsSync(eventsPath)) {
 }
 
 // ======= Bot起動 =======
-client.once('ready', () => {
-  console.log(`✅ Logged in as ${client.user.tag}`);
-});
+client.login(process.env.DISCORD_TOKEN)
+  .then(() => {
+    console.log(`✅ Logged in as ${client.user.tag}`);
+  })
+  .catch(err => {
+    console.error('❌ Bot login failed:', err);
+    process.exit(1); // 明示的に終了
+  });
+
 
 // 環境変数読み込みチェック
 console.log("🔍 DISCORD_TOKEN:", process.env.DISCORD_TOKEN ? "Loaded ✅" : "Missing ❌");
