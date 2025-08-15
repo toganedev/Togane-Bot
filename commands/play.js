@@ -6,6 +6,12 @@ import {
     AudioPlayerStatus,
 } from '@discordjs/voice';
 import fetch from 'node-fetch';
+import fs from 'fs';
+import path from 'path';
+import { pipeline } from 'stream';
+import { promisify } from 'util';
+
+const streamPipeline = promisify(pipeline);
 
 const GITHUB_API_URL = 'https://api.github.com/repos/toganedev/D/contents/';
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/toganedev/D/main/';
@@ -24,7 +30,7 @@ export default {
     async execute(interaction) {
         const title = interaction.options.getString('title');
 
-        // メンバーのVC取得（キャッシュ切れ防止）
+        // VC取得（キャッシュ切れ防止）
         let member = interaction.member;
         if (!member.voice || !member.voice.channel) {
             member = await interaction.guild.members.fetch(interaction.user.id);
@@ -47,7 +53,6 @@ export default {
         let fileUrl, fileName;
 
         if (title) {
-            // タイトル指定再生
             fileName = `${encodeURIComponent(title)}.mp4`;
             let res = await fetch(`${GITHUB_RAW_BASE}${fileName}`, { method: 'HEAD' });
 
@@ -69,7 +74,6 @@ export default {
 
             fileUrl = `${GITHUB_RAW_BASE}${fileName}`;
         } else {
-            // ランダム選曲
             const listRes = await fetch(GITHUB_API_URL, {
                 headers: {
                     Authorization: `token ${process.env.GITHUB_TOKEN}`,
@@ -112,6 +116,21 @@ export default {
             fileUrl = `${GITHUB_RAW_BASE}${fileName}`;
         }
 
+        // 一時ファイルに保存（途切れ防止）
+        const tempPath = path.join('/tmp', fileName);
+        const res = await fetch(fileUrl);
+        if (!res.ok) {
+            return interaction.editReply({
+                embeds: [
+                    new EmbedBuilder()
+                        .setColor(0xff0000)
+                        .setTitle('❌ ダウンロード失敗')
+                        .setDescription('音源を取得できませんでした。'),
+                ],
+            });
+        }
+        await streamPipeline(res.body, fs.createWriteStream(tempPath));
+
         // VC接続
         const connection = joinVoiceChannel({
             channelId: channel.id,
@@ -119,12 +138,8 @@ export default {
             adapterCreator: channel.guild.voiceAdapterCreator,
         });
 
-        // GitHubから直接ストリーム取得
-        const audioStream = await fetch(fileUrl).then(res => res.body);
-        const resource = createAudioResource(audioStream);
+        const resource = createAudioResource(tempPath);
         const player = createAudioPlayer();
-
-        player.play(resource);
         connection.subscribe(player);
 
         player.on(AudioPlayerStatus.Playing, () => {
@@ -140,11 +155,12 @@ export default {
 
         player.on(AudioPlayerStatus.Idle, () => {
             connection.destroy();
+            fs.unlink(tempPath, () => {}); // 再生後削除
         });
 
         player.on('error', error => {
             console.error(error);
-            interaction.followUp({
+            interaction.editReply({
                 embeds: [
                     new EmbedBuilder()
                         .setColor(0xff0000)
@@ -153,6 +169,9 @@ export default {
                 ],
             });
             connection.destroy();
+            fs.unlink(tempPath, () => {});
         });
+
+        player.play(resource);
     },
 };
