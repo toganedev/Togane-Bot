@@ -87,14 +87,30 @@ if (fs.existsSync(eventsPath)) {
 }
 
 // ======= Bot起動 =======
+console.log("🔍 DISCORD_TOKEN:", process.env.DISCORD_TOKEN ? "Loaded ✅" : "Missing ❌");
+console.log("🔍 CLIENT_ID:", process.env.CLIENT_ID ? "Loaded ✅" : "Missing ❌");
+
+client.once('ready', () => {
+  console.log(`✅ Logged in as ${client.user.tag}`);
+});
+
 client.login(process.env.DISCORD_TOKEN)
-  .then(() => {
-    console.log(`✅ Logged in as ${client.user.tag}`);
-  })
+  .then(() => console.log("🚀 Bot login success"))
   .catch(err => {
     console.error('❌ Bot login failed:', err);
-    process.exit(1); // 明示的に終了
+    process.exit(1); // エラー終了でRenderが再起動
   });
+
+// ======= エラー監視 =======
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Unhandled Rejection]', reason);
+  process.exit(1);
+});
+
+process.on('uncaughtException', err => {
+  console.error('[Uncaught Exception]', err);
+  process.exit(1);
+});
 
 
 // 環境変数読み込みチェック
@@ -115,13 +131,4 @@ app.get('/', (_req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🌐 Express server is listening on port ${PORT}`);
-});
-
-// ======= エラー監視（落ちる原因を特定するため） =======
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('[Unhandled Rejection]', reason);
-});
-
-process.on('uncaughtException', err => {
-  console.error('[Uncaught Exception]', err);
 });
