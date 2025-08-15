@@ -53,6 +53,15 @@ const guildId = '1401426537231814767';
 // ======= コマンド登録処理 =======
 (async () => {
   try {
+    // --- ギルドコマンド削除 ---
+    console.log('🗑 ギルドコマンド削除中...');
+    await rest.put(
+      Routes.applicationGuildCommands(process.env.CLIENT_ID, guildId),
+      { body: [] }
+    );
+    console.log('✅ ギルドコマンド削除完了');
+
+    // --- ギルドコマンド登録 ---
     console.log('⚡ ギルドコマンド登録中...');
     await rest.put(
       Routes.applicationGuildCommands(process.env.CLIENT_ID, guildId),
@@ -60,6 +69,15 @@ const guildId = '1401426537231814767';
     );
     console.log('✅ ギルドコマンド登録完了（即時反映）');
 
+    // --- グローバルコマンド削除 ---
+    console.log('🗑 グローバルコマンド削除中...');
+    await rest.put(
+      Routes.applicationCommands(process.env.CLIENT_ID),
+      { body: [] }
+    );
+    console.log('✅ グローバルコマンド削除完了');
+
+    // --- グローバルコマンド登録 ---
     console.log('🌍 グローバルコマンド登録中...');
     await rest.put(
       Routes.applicationCommands(process.env.CLIENT_ID),
