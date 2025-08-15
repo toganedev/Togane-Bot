@@ -5,6 +5,8 @@ import fs from 'fs';
 import path from 'path';
 import express from 'express';
 import { fileURLToPath } from 'url';
+import '@discordjs/opus';
+import 'libsodium-wrappers';
 
 // ======= 環境変数の読み込み =======
 dotenv.config();
