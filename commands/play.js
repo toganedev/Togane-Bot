@@ -171,7 +171,8 @@ export default {
             connection.destroy();
             fs.unlink(tempPath, () => {});
         });
-
+　　　　global.voiceConnection = connection;
+        global.audioPlayer = player;
         player.play(resource);
     },
 };
