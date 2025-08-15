@@ -5,8 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js",
-    "postinstall": "npm rebuild canvas --update-binary"
+    "dev": "nodemon index.js"
   },
   "engines": {
     "node": "20.x"
@@ -29,8 +28,6 @@
     "axios": "^1.11.0",
     "axios-cookiejar-support": "^6.0.4",
     "tough-cookie": "^5.1.2",
-    "canvas": "^2.11.2",
-    "canvacord": "^6.0.2",
     "chalk": "^5.4.1",
     "dayjs": "^1.11.10",
     "discord.js": "^14.14.1",
