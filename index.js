@@ -91,6 +91,10 @@ client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
+// 環境変数読み込みチェック
+console.log("🔍 DISCORD_TOKEN:", process.env.DISCORD_TOKEN ? "Loaded ✅" : "Missing ❌");
+console.log("🔍 CLIENT_ID:", process.env.CLIENT_ID ? "Loaded ✅" : "Missing ❌");
+
 client.login(process.env.DISCORD_TOKEN).catch(err => {
   console.error('❌ Bot login failed:', err);
 });
