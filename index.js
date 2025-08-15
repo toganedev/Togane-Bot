@@ -87,7 +87,13 @@ if (fs.existsSync(eventsPath)) {
 }
 
 // ======= Bot起動 =======
-client.login(process.env.DISCORD_TOKEN);
+client.once('ready', () => {
+  console.log(`✅ Logged in as ${client.user.tag}`);
+});
+
+client.login(process.env.DISCORD_TOKEN).catch(err => {
+  console.error('❌ Bot login failed:', err);
+});
 
 // ======= Expressサーバー起動（Renderのポートバインド用） =======
 const app = express();
