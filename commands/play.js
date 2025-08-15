@@ -18,7 +18,7 @@ export default {
     async execute(interaction) {
         const title = interaction.options.getString('title');
 
-        // VC取得
+        // VC取得（キャッシュなし対策）
         let member = interaction.member;
         if (!member.voice || !member.voice.channel) {
             member = await interaction.guild.members.fetch(interaction.user.id);
@@ -39,7 +39,7 @@ export default {
         let fileName, fileUrl;
 
         if (title) {
-            // タイトル指定
+            // タイトル指定再生
             fileName = `${encodeURIComponent(title)}.mp4`;
             let res = await fetch(`${GITHUB_RAW_BASE}${fileName}`, { method: 'HEAD' });
             if (!res.ok) {
@@ -56,9 +56,25 @@ export default {
             }
             fileUrl = `${GITHUB_RAW_BASE}${fileName}`;
         } else {
-            // ランダム再生
-            const listRes = await fetch(GITHUB_API_URL);
+            // ランダム再生（GitHub APIで取得）
+            const listRes = await fetch(GITHUB_API_URL, {
+                headers: {
+                    'Authorization': `token ${process.env.GITHUB_TOKEN}`,
+                    'User-Agent': 'togane-bot'
+                }
+            });
+
             const files = await listRes.json();
+            if (!Array.isArray(files)) {
+                console.error('GitHub API Error:', files);
+                return interaction.editReply({
+                    embeds: [new EmbedBuilder()
+                        .setColor(0xff0000)
+                        .setTitle('❌ GitHub APIエラー')
+                        .setDescription('ファイル一覧を取得できませんでした。')]
+                });
+            }
+
             const audioFiles = files.filter(f => f.type === 'file' && (f.name.endsWith('.mp4') || f.name.endsWith('.m4a')));
             if (audioFiles.length === 0) {
                 return interaction.editReply({
@@ -73,7 +89,7 @@ export default {
             fileUrl = `${GITHUB_RAW_BASE}${fileName}`;
         }
 
-        // 再生処理
+        // 再生
         const connection = joinVoiceChannel({
             channelId: channel.id,
             guildId: channel.guild.id,
