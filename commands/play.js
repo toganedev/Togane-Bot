@@ -2,21 +2,21 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import {
   joinVoiceChannel,
   createAudioPlayer,
-  createAudioResource,
-  AudioPlayerStatus,
 } from '@discordjs/voice';
 import fetch from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
 import { pipeline } from 'stream';
 import { promisify } from 'util';
+import { createAudioResource, AudioPlayerStatus } from '@discordjs/voice';
 
 const streamPipeline = promisify(pipeline);
+
 const GITHUB_API_URL = 'https://api.github.com/repos/toganedev/D/contents/';
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/toganedev/D/main/';
 
-// 共通：曲再生
-async function playTrack(fileName, files, player, connection, interaction) {
+// ここを export する
+export async function playTrack(fileName, files, player, connection, interaction) {
   const fileUrl = `${GITHUB_RAW_BASE}${fileName}`;
   const tempPath = path.join('/tmp', fileName);
 
@@ -40,7 +40,7 @@ async function playTrack(fileName, files, player, connection, interaction) {
   // 次の曲をランダムに決定
   const nextFile = files[Math.floor(Math.random() * files.length)].name;
 
-  // 現在と次をEmbed表示
+  // Embed送信（現在と次を表示）
   await interaction.channel.send({
     embeds: [
       new EmbedBuilder()
@@ -50,13 +50,14 @@ async function playTrack(fileName, files, player, connection, interaction) {
     ],
   });
 
+  // 曲が終わったら次を再生
   player.once(AudioPlayerStatus.Idle, () => {
     fs.unlink(tempPath, () => {});
     playTrack(nextFile, files, player, connection, interaction);
   });
 
-  player.once('error', err => {
-    console.error(err);
+  player.once('error', error => {
+    console.error(error);
     interaction.channel.send({
       embeds: [
         new EmbedBuilder()
@@ -77,7 +78,7 @@ export default {
     .addStringOption(option =>
       option
         .setName('title')
-        .setDescription('曲名（拡張子不要）')
+        .setDescription('曲名（省略可）')
         .setRequired(false)
     ),
 
@@ -104,7 +105,7 @@ export default {
 
     await interaction.deferReply();
 
-    // GitHubから曲一覧
+    // GitHubから曲一覧を取得
     const listRes = await fetch(GITHUB_API_URL, {
       headers: {
         Authorization: `token ${process.env.GITHUB_TOKEN}`,
@@ -112,6 +113,7 @@ export default {
       },
     });
     const files = await listRes.json();
+
     const audioFiles = files.filter(
       f => f.type === 'file' && (f.name.endsWith('.mp4') || f.name.endsWith('.m4a'))
     );
@@ -138,7 +140,7 @@ export default {
             new EmbedBuilder()
               .setColor(0xff0000)
               .setTitle('❌ 曲が見つかりません')
-              .setDescription(`\`\`\`${title}\` は存在しません。\`\`\``),
+              .setDescription(`\`\`\`${title} は存在しません。\`\`\``),
           ],
         });
       }
@@ -169,7 +171,9 @@ export default {
     // 再生開始
     playTrack(currentFile, audioFiles, player, connection, interaction);
 
+    // グローバルに保存
     global.voiceConnection = connection;
     global.audioPlayer = player;
+    global.audioFiles = audioFiles;
   },
 };
