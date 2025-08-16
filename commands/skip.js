@@ -1,5 +1,8 @@
-import { SlashCommandBuilder } from 'discord.js';
-import { playTrack } from './play.js'; // 共通の関数をimport
+import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import fetch from 'node-fetch';
+import { playTrack } from './play.js'; // 共通関数を利用
+
+const GITHUB_API_URL = 'https://api.github.com/repos/toganedev/D/contents/';
 
 export default {
   data: new SlashCommandBuilder()
@@ -32,6 +35,7 @@ export default {
       },
     });
     const files = await listRes.json();
+
     const audioFiles = files.filter(
       f => f.type === 'file' && (f.name.endsWith('.mp4') || f.name.endsWith('.m4a'))
     );
