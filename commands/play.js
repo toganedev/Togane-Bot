@@ -24,32 +24,38 @@ export async function playTrack(fileName, files, player, connection, interaction
   // ダウンロード
   const res = await fetch(fileUrl);
   if (!res.ok) {
-    await interaction.followUp({
+    await interaction.channel.send({
       embeds: [
         new EmbedBuilder()
           .setColor(0xff0000)
           .setTitle('❌ ダウンロード失敗')
-          .setDescription('音源を取得できませんでした。'),
+          .setDescription('```音源を取得できませんでした。```'),
       ],
     });
     return;
   }
   await streamPipeline(res.body, fs.createWriteStream(tempPath));
 
-  // 次の曲をランダムに決定
-  const nextFile = files[Math.floor(Math.random() * files.length)].name;
-  global.nextTrack = nextFile;
-
   const resource = createAudioResource(tempPath);
   player.play(resource);
 
-  // Embed送信（現在と次を表示）
-  await interaction.followUp({
+  // 次の曲を事前に決定
+  const nextFile = files[Math.floor(Math.random() * files.length)].name;
+
+  // グローバル管理
+  global.currentTrack = fileName;
+  global.nextTrack = nextFile;
+  global.audioFiles = files;
+
+  // Embed送信
+  await interaction.channel.send({
     embeds: [
       new EmbedBuilder()
         .setColor(0x00ff00)
         .setTitle('🎵 再生開始')
-        .setDescription(`\`\`\`\n現在: ${fileName}\n次: ${nextFile}\n\`\`\``),
+        .setDescription(
+          `\`\`\`\n現在: ${fileName}\n次: ${nextFile}\n\`\`\``
+        ),
     ],
   });
 
@@ -59,15 +65,15 @@ export async function playTrack(fileName, files, player, connection, interaction
     playTrack(nextFile, files, player, connection, interaction);
   });
 
-  // エラーハンドリング
+  // エラー処理
   player.once('error', error => {
     console.error(error);
-    interaction.followUp({
+    interaction.channel.send({
       embeds: [
         new EmbedBuilder()
           .setColor(0xff0000)
           .setTitle('❌ 再生エラー')
-          .setDescription('再生中にエラーが発生しました。'),
+          .setDescription('```再生中にエラーが発生しました。```'),
       ],
     });
     connection.destroy();
@@ -80,7 +86,8 @@ export default {
     .setName('play')
     .setDescription('GitHubから曲を再生します')
     .addStringOption(option =>
-      option.setName('title')
+      option
+        .setName('title')
         .setDescription('曲名（省略可）')
         .setRequired(false)
     ),
@@ -100,7 +107,7 @@ export default {
           new EmbedBuilder()
             .setColor(0xff0000)
             .setTitle('⚠ エラー')
-            .setDescription('ボイスチャンネルに参加してください！'),
+            .setDescription('```ボイスチャンネルに参加してください！```'),
         ],
         ephemeral: true,
       });
@@ -124,7 +131,7 @@ export default {
           new EmbedBuilder()
             .setColor(0xff0000)
             .setTitle('❌ GitHub APIエラー')
-            .setDescription('ファイル一覧を取得できませんでした。'),
+            .setDescription('```ファイル一覧を取得できませんでした。```'),
         ],
       });
     }
@@ -139,7 +146,7 @@ export default {
           new EmbedBuilder()
             .setColor(0xff0000)
             .setTitle('❌ 音源なし')
-            .setDescription('再生可能な音源ファイルがありません。'),
+            .setDescription('```再生可能な音源ファイルがありません。```'),
         ],
       });
     }
@@ -147,8 +154,9 @@ export default {
     // 再生する曲を決定
     let currentFile;
     if (title) {
-      const candidate = audioFiles.find(f => f.name === `${encodeURIComponent(title)}.mp4`)
-        || audioFiles.find(f => f.name === `${encodeURIComponent(title)}.m4a`);
+      let candidate =
+        audioFiles.find(f => f.name === `${encodeURIComponent(title)}.mp4`) ||
+        audioFiles.find(f => f.name === `${encodeURIComponent(title)}.m4a`);
       if (!candidate) {
         return interaction.editReply({
           embeds: [
@@ -186,7 +194,7 @@ export default {
     // 再生開始
     playTrack(currentFile, audioFiles, player, connection, interaction);
 
-    // グローバルに保存
+    // グローバル保持
     global.voiceConnection = connection;
     global.audioPlayer = player;
   },
