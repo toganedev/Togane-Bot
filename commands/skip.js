@@ -1,19 +1,19 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import fetch from 'node-fetch';
-import { playTrack } from './play.js'; // 共通関数を利用
-
-const GITHUB_API_URL = 'https://api.github.com/repos/toganedev/D/contents/';
+import { playTrack } from './play.js';
 
 export default {
   data: new SlashCommandBuilder()
     .setName('skip')
-    .setDescription('次のランダム曲にスキップします'),
+    .setDescription('次の曲にスキップします'),
 
   async execute(interaction) {
     const connection = global.voiceConnection;
     const player = global.audioPlayer;
+    const nextTrack = global.nextTrack;
+    const audioFiles = global.audioFiles;
+    const currentTrack = global.currentTrack;
 
-    if (!connection || !player) {
+    if (!connection || !player || !nextTrack || !audioFiles) {
       return interaction.reply({
         embeds: [
           new EmbedBuilder()
@@ -27,40 +27,20 @@ export default {
 
     await interaction.deferReply();
 
-    // GitHubから曲一覧を再取得
-    const listRes = await fetch(GITHUB_API_URL, {
-      headers: {
-        Authorization: `token ${process.env.GITHUB_TOKEN}`,
-        'User-Agent': 'togane-bot',
-      },
-    });
-    const files = await listRes.json();
+    // 再生処理 (playTrack 内で global.currentTrack と global.nextTrack を更新)
+    playTrack(nextTrack, audioFiles, player, connection, interaction);
 
-    const audioFiles = files.filter(
-      f => f.type === 'file' && (f.name.endsWith('.mp4') || f.name.endsWith('.m4a'))
-    );
-
-    if (audioFiles.length === 0) {
-      return interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0xff0000)
-            .setTitle('❌ 音源なし')
-            .setDescription('```再生可能な音源ファイルがありません。```'),
-        ],
-      });
-    }
-
-    // 新しい曲を選んで即再生
-    const randomFile = audioFiles[Math.floor(Math.random() * audioFiles.length)].name;
-    playTrack(randomFile, audioFiles, player, connection, interaction);
-
+    // メッセージ送信
     await interaction.editReply({
       embeds: [
         new EmbedBuilder()
           .setColor(0x00ff00)
           .setTitle('⏭ スキップ実行')
-          .setDescription('```新しい曲に切り替えました。```'),
+          .setDescription(
+            `\`\`\`\n現在の曲: ${currentTrack} をスキップしました\n` +
+            `再生中: ${nextTrack}\n` +
+            `次の曲: ${global.nextTrack}\n\`\`\``
+          ),
       ],
     });
   },
