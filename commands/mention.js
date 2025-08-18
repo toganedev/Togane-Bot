@@ -3,7 +3,7 @@ import { SlashCommandBuilder } from 'discord.js';
 export default {
   data: new SlashCommandBuilder()
     .setName('mention')
-    .setDescription('指定した人を指定した回数メンションします (1401421639106957464専用)')
+    .setDescription('指定した人を指定した回数メンションします ')
     .addUserOption(option =>
       option.setName('user')
         .setDescription('メンションする相手')
@@ -14,7 +14,7 @@ export default {
         .setRequired(true)),
 
   async execute(interaction) {
-    // ID制限
+    // 特定ユーザー以外は弾く
     if (interaction.user.id !== '1401421639106957464') {
       return interaction.reply({
         content: 'このコマンドはあなたには使用できません。',
@@ -32,8 +32,10 @@ export default {
       });
     }
 
+    // 最初に返信
     await interaction.reply(`✅ ${user} を ${count}回メンションします！`);
 
+    // 実際にメンション送信
     for (let i = 0; i < count; i++) {
       await interaction.channel.send(`${user}`);
     }
