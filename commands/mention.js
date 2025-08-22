@@ -3,7 +3,7 @@ import { SlashCommandBuilder } from 'discord.js';
 export default {
   data: new SlashCommandBuilder()
     .setName('mention')
-    .setDescription('指定した人を指定した回数メンションします ')
+    .setDescription('指定した人を指定した回数メンションします')
     .addUserOption(option =>
       option.setName('user')
         .setDescription('メンションする相手')
