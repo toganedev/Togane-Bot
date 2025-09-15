@@ -1,25 +1,9 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import {
-  joinVoiceChannel,
-  createAudioPlayer,
-  createAudioResource,
-  AudioPlayerStatus,
-} from '@discordjs/voice';
-import fetch from 'node-fetch';
-import fs from 'fs';
-import path from 'path';
-import { pipeline } from 'stream';
-import { promisify } from 'util';
-
-const streamPipeline = promisify(pipeline);
-
-const GITHUB_API_URL = 'https://api.github.com/repos/toganedev/D/contents/';
-const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/toganedev/D/main/';
+const TRACKS_JSON_URL = 'https://raw.githubusercontent.com/j20252097/h/main/tracks.json';
 
 export default {
   data: new SlashCommandBuilder()
     .setName('play')
-    .setDescription('GitHubから曲を再生します')
+    .setDescription('tracks.jsonから曲を再生します')
     .addStringOption(option =>
       option
         .setName('title')
@@ -30,7 +14,7 @@ export default {
   async execute(interaction) {
     const title = interaction.options.getString('title');
 
-    // VC取得
+    // --- VC確認 ---
     let member = interaction.member;
     if (!member.voice || !member.voice.channel) {
       member = await interaction.guild.members.fetch(interaction.user.id);
@@ -50,90 +34,46 @@ export default {
 
     await interaction.deferReply();
 
-    // GitHubからファイル一覧を取得
-    const listRes = await fetch(GITHUB_API_URL, {
-      headers: {
-        Authorization: `token ${process.env.GITHUB_TOKEN}`,
-        'User-Agent': 'togane-bot',
-      },
-    });
-    const files = await listRes.json();
+    // --- tracks.json 読み込み ---
+    const res = await fetch(TRACKS_JSON_URL);
+    if (!res.ok) {
+      return interaction.editReply('❌ tracks.jsonの取得に失敗しました');
+    }
+    const tracks = await res.json();
 
-    if (!Array.isArray(files)) {
-      console.error('GitHub API Error:', files);
-      return interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0xff0000)
-            .setTitle('❌ GitHub APIエラー')
-            .setDescription('```ファイル一覧を取得できませんでした。```'),
-        ],
-      });
+    if (!Array.isArray(tracks) || tracks.length === 0) {
+      return interaction.editReply('❌ 再生可能な曲がありません');
     }
 
-    const audioFiles = files.filter(
-      f =>
-        f.type === 'file' &&
-        (f.name.endsWith('.mp4') || f.name.endsWith('.m4a'))
-    );
-
-    if (audioFiles.length === 0) {
-      return interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0xff0000)
-            .setTitle('❌ 音源なし')
-            .setDescription('```再生可能な音源ファイルがありません。```'),
-        ],
-      });
-    }
-
-    // --- 部分一致検索 ---
-    let currentFile;
+    // --- 曲検索 ---
+    let currentTrack;
     if (title) {
-      const candidate = audioFiles.find(f =>
-        f.name.toLowerCase().includes(title.toLowerCase())
+      currentTrack = tracks.find(t =>
+        t.title.toLowerCase().includes(title.toLowerCase())
       );
-      if (!candidate) {
-        return interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(0xff0000)
-              .setTitle('❌ 曲が見つかりません')
-              .setDescription(`\`\`\`\n${title} を含むファイルは存在しません。\n\`\`\``),
-          ],
-        });
+      if (!currentTrack) {
+        return interaction.editReply(`❌ ${title} が見つかりません`);
       }
-      currentFile = candidate.name;
     } else {
-      currentFile = audioFiles[Math.floor(Math.random() * audioFiles.length)].name;
+      currentTrack = tracks[Math.floor(Math.random() * tracks.length)];
     }
 
-    // --- 次の曲をランダムに決定 ---
-    const nextFile = audioFiles
-      .filter(f => f.name !== currentFile)
-      [Math.floor(Math.random() * (audioFiles.length - 1))].name;
+    // --- 次の曲（ランダム） ---
+    const candidates = tracks.filter(t => t.url !== currentTrack.url);
+    const nextTrack = candidates[Math.floor(Math.random() * candidates.length)];
 
-    global.currentTrack = currentFile;
-    global.nextTrack = nextFile;
+    global.currentTrack = currentTrack;
+    global.nextTrack = nextTrack;
 
     // --- ダウンロード ---
-    const fileUrl = `${GITHUB_RAW_BASE}${currentFile}`;
-    const tempPath = path.join('/tmp', currentFile);
-    const res = await fetch(fileUrl);
-    if (!res.ok) {
-      return interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0xff0000)
-            .setTitle('❌ ダウンロード失敗')
-            .setDescription('```音源を取得できませんでした。```'),
-        ],
-      });
+    const tempPath = path.join('/tmp', path.basename(currentTrack.url));
+    const audioRes = await fetch(currentTrack.url);
+    if (!audioRes.ok) {
+      return interaction.editReply('❌ 音源のダウンロードに失敗しました');
     }
-    await streamPipeline(res.body, fs.createWriteStream(tempPath));
+    await streamPipeline(audioRes.body, fs.createWriteStream(tempPath));
 
-    // VC接続
+    // --- 再生処理 ---
     const connection = joinVoiceChannel({
       channelId: channel.id,
       guildId: channel.guild.id,
@@ -154,9 +94,7 @@ export default {
         new EmbedBuilder()
           .setColor(0x00ff00)
           .setTitle('🎵 再生開始')
-          .setDescription(
-            `\`\`\`\n現在: ${currentFile}\n次: ${nextFile}\n\`\`\``
-          ),
+          .setDescription(`\`\`\`\n現在: ${currentTrack.title} - ${currentTrack.artist}\n次: ${nextTrack.title} - ${nextTrack.artist}\n\`\`\``),
       ],
     });
 
