@@ -1,3 +1,4 @@
+import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 const TRACKS_JSON_URL = 'https://raw.githubusercontent.com/j20252097/h/main/tracks.json';
 
 export default {
