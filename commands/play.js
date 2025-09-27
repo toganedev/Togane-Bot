@@ -16,15 +16,25 @@ export default {
     .addStringOption(option =>
       option.setName('query')
         .setDescription('曲名またはアーティスト名')
-        .setRequired(true),
+        .setRequired(false),
     ),
 
   async execute(interaction) {
-    const query = interaction.options.getString('query').toLowerCase();
-    const results = tracks.filter(t =>
-      t.title.toLowerCase().includes(query) ||
-      t.artist.toLowerCase().includes(query),
-    );
+    const query = interaction.options.getString('query');
+    let results = [];
+
+    if (query) {
+      const lower = query.toLowerCase();
+      results = tracks.filter(
+        t =>
+          t.title.toLowerCase().includes(lower) ||
+          t.artist.toLowerCase().includes(lower),
+      );
+    } else {
+      // ランダム選択
+      const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
+      results = [randomTrack];
+    }
 
     if (results.length === 0) {
       return interaction.reply({ content: '❌ 曲が見つかりませんでした。', ephemeral: true });
