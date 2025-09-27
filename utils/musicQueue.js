@@ -7,6 +7,7 @@ import {
 } from '@discordjs/voice';
 import { EmbedBuilder } from 'discord.js';
 import fs from 'fs';
+import { musicSettings } from '../commands/music-setting.js'; // 設定を参照
 
 const tracks = JSON.parse(fs.readFileSync('./tracks.json', 'utf-8'));
 
@@ -16,6 +17,7 @@ class MusicQueue {
     this.connection = null;
     this.player = createAudioPlayer();
     this.current = null;
+    this.currentResource = null; // 🎚️ 現在のリソース保持
 
     this.player.on(AudioPlayerStatus.Idle, () => {
       this.playNext();
@@ -41,6 +43,9 @@ class MusicQueue {
   }
 
   playNext(interaction) {
+    const guildId = interaction?.guild?.id;
+    const settings = guildId ? musicSettings.get(guildId) : { volume: 100 };
+
     // 1️⃣ キューに曲があれば次を再生
     if (this.queue.length > 0) {
       this.current = this.queue.shift();
@@ -49,7 +54,11 @@ class MusicQueue {
       this.current = tracks[Math.floor(Math.random() * tracks.length)];
     }
 
-    const resource = createAudioResource(this.current.url);
+    // 🎚️ 音量を反映させたリソース作成
+    const resource = createAudioResource(this.current.url, { inlineVolume: true });
+    resource.volume.setVolume(settings.volume / 100);
+    this.currentResource = resource;
+
     this.player.play(resource);
 
     if (interaction) {
@@ -57,6 +66,13 @@ class MusicQueue {
       if (this.queue.length > 0) {
         interaction.channel.send({ embeds: [this._nextTrackEmbed()] });
       }
+    }
+  }
+
+  // 🎚️ 音量を動的に変更（/music-settingから呼ぶ用）
+  setVolume(guildId, volume) {
+    if (this.currentResource && this.currentResource.volume) {
+      this.currentResource.volume.setVolume(volume / 100);
     }
   }
 
