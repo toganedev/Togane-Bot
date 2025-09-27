@@ -1,7 +1,7 @@
-const { SlashCommandBuilder } = require('discord.js');
-const musicQueue = require('../../utils/musicQueue');
+import { SlashCommandBuilder } from 'discord.js';
+import musicQueue from '../utils/musicQueue.js';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('stop')
     .setDescription('音楽を停止し、キューをクリアします'),
