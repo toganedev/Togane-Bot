@@ -51,6 +51,9 @@ class MusicQueue {
 
     if (interaction) {
       interaction.channel.send({ embeds: [this._nowPlayingEmbed()] });
+      if (this.queue.length > 0) {
+        interaction.channel.send({ embeds: [this._nextTrackEmbed()] });
+      }
     }
   }
 
@@ -67,12 +70,45 @@ class MusicQueue {
     interaction.reply({ content: '⏹️ 再生を停止しました！' });
   }
 
+  getQueueEmbed() {
+    if (!this.current && this.queue.length === 0) {
+      return new EmbedBuilder()
+        .setTitle('📂 キューは空です')
+        .setColor(0xFF0000);
+    }
+
+    let desc = '';
+    if (this.current) {
+      desc += `🎶 **再生中**: \`${this.current.title}\` by *${this.current.artist}*\n\n`;
+    }
+
+    if (this.queue.length > 0) {
+      desc += this.queue
+        .map((track, i) => `${i + 1}. \`${track.title}\` by *${track.artist}*`)
+        .join('\n');
+    }
+
+    return new EmbedBuilder()
+      .setTitle('🎵 再生キュー')
+      .setDescription(desc)
+      .setColor(0x1DB954);
+  }
+
   _nowPlayingEmbed() {
     return new EmbedBuilder()
       .setTitle('🎶 再生中')
       .setDescription(`\`\`\`\n${this.current.title}\nby ${this.current.artist}\n\`\`\``)
       .setURL(this.current.url)
       .setColor(0x1DB954);
+  }
+
+  _nextTrackEmbed() {
+    const next = this.queue[0];
+    return new EmbedBuilder()
+      .setTitle('⏭️ 次に再生予定')
+      .setDescription(`\`\`\`\n${next.title}\nby ${next.artist}\n\`\`\``)
+      .setURL(next.url)
+      .setColor(0xFFD700);
   }
 }
 
