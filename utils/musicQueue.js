@@ -6,6 +6,9 @@ import {
   joinVoiceChannel,
 } from '@discordjs/voice';
 import { EmbedBuilder } from 'discord.js';
+import fs from 'fs';
+
+const tracks = JSON.parse(fs.readFileSync('./tracks.json', 'utf-8'));
 
 class MusicQueue {
   constructor() {
@@ -38,14 +41,14 @@ class MusicQueue {
   }
 
   playNext(interaction) {
-    if (this.queue.length === 0) {
-      this.current = null;
-      if (this.connection) this.connection.destroy();
-      this.connection = null;
-      return;
+    // 1️⃣ キューに曲があれば次を再生
+    if (this.queue.length > 0) {
+      this.current = this.queue.shift();
+    } else {
+      // 2️⃣ キューが空 → ランダム再生
+      this.current = tracks[Math.floor(Math.random() * tracks.length)];
     }
 
-    this.current = this.queue.shift();
     const resource = createAudioResource(this.current.url);
     this.player.play(resource);
 
@@ -86,6 +89,8 @@ class MusicQueue {
       desc += this.queue
         .map((track, i) => `${i + 1}. \`${track.title}\` by *${track.artist}*`)
         .join('\n');
+    } else {
+      desc += '_次の曲はランダム再生されます…_';
     }
 
     return new EmbedBuilder()
@@ -103,6 +108,13 @@ class MusicQueue {
   }
 
   _nextTrackEmbed() {
+    if (this.queue.length === 0) {
+      return new EmbedBuilder()
+        .setTitle('⏭️ 次に再生予定')
+        .setDescription('_次の曲はランダム再生されます…_')
+        .setColor(0xFFD700);
+    }
+
     const next = this.queue[0];
     return new EmbedBuilder()
       .setTitle('⏭️ 次に再生予定')
