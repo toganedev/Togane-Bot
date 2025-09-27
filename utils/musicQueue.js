@@ -1,5 +1,11 @@
 // utils/musicQueue.js
-const { createAudioPlayer, createAudioResource, AudioPlayerStatus, joinVoiceChannel } = require('@discordjs/voice');
+import {
+  createAudioPlayer,
+  createAudioResource,
+  AudioPlayerStatus,
+  joinVoiceChannel,
+} from '@discordjs/voice';
+import { EmbedBuilder } from 'discord.js';
 
 class MusicQueue {
   constructor() {
@@ -45,16 +51,12 @@ class MusicQueue {
 
     if (interaction) {
       interaction.channel.send({ embeds: [this._nowPlayingEmbed()] });
-    } else if (this.connection) {
-      this.connection.joinConfig.channelId && this.connection.joinConfig.channelId.send({ embeds: [this._nowPlayingEmbed()] });
     }
   }
 
   skip(interaction) {
-    if (this.player) {
-      interaction.reply({ content: '⏭️ 曲をスキップしました！' });
-      this.playNext(interaction);
-    }
+    interaction.reply({ content: '⏭️ 曲をスキップしました！' });
+    this.playNext(interaction);
   }
 
   stop(interaction) {
@@ -66,7 +68,6 @@ class MusicQueue {
   }
 
   _nowPlayingEmbed() {
-    const { EmbedBuilder } = require('discord.js');
     return new EmbedBuilder()
       .setTitle('🎶 再生中')
       .setDescription(`\`\`\`\n${this.current.title}\nby ${this.current.artist}\n\`\`\``)
@@ -75,4 +76,5 @@ class MusicQueue {
   }
 }
 
-module.exports = new MusicQueue();
+const musicQueue = new MusicQueue();
+export default musicQueue;
