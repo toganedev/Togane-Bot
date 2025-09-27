@@ -7,7 +7,7 @@ import {
 } from '@discordjs/voice';
 import { EmbedBuilder } from 'discord.js';
 import fs from 'fs';
-import { musicSettings } from '../commands/music-setting.js'; // 設定を参照
+import { musicSettings } from '../commands/music-setting.js';
 
 const tracks = JSON.parse(fs.readFileSync('./tracks.json', 'utf-8'));
 
@@ -17,7 +17,7 @@ class MusicQueue {
     this.connection = null;
     this.player = createAudioPlayer();
     this.current = null;
-    this.currentResource = null; // 🎚️ 現在のリソース保持
+    this.currentResource = null;
 
     this.player.on(AudioPlayerStatus.Idle, () => {
       this.playNext();
@@ -44,18 +44,47 @@ class MusicQueue {
 
   playNext(interaction) {
     const guildId = interaction?.guild?.id;
-    const settings = guildId ? musicSettings.get(guildId) : { volume: 100 };
+    const settings = guildId ? musicSettings.get(guildId) : {
+      volume: 100,
+      repeat: 'off',
+      shuffle: false,
+      autoplay: true,
+    };
 
-    // 1️⃣ キューに曲があれば次を再生
-    if (this.queue.length > 0) {
-      this.current = this.queue.shift();
-    } else {
-      // 2️⃣ キューが空 → ランダム再生
-      this.current = tracks[Math.floor(Math.random() * tracks.length)];
+    // 🎵 リピート処理
+    if (settings.repeat === 'one' && this.current) {
+      // 同じ曲をもう一度再生
+      this._playResource(this.current, settings, interaction);
+      return;
     }
 
-    // 🎚️ 音量を反映させたリソース作成
-    const resource = createAudioResource(this.current.url, { inlineVolume: true });
+    if (settings.repeat === 'all' && this.current) {
+      // 前の曲を末尾に戻す
+      this.queue.push(this.current);
+    }
+
+    // 🔀 シャッフル対応
+    if (settings.shuffle && this.queue.length > 1) {
+      const rand = Math.floor(Math.random() * this.queue.length);
+      [this.queue[0], this.queue[rand]] = [this.queue[rand], this.queue[0]];
+    }
+
+    // 次の曲を取得
+    if (this.queue.length > 0) {
+      this.current = this.queue.shift();
+    } else if (settings.autoplay) {
+      // キューが空 → ランダム再生
+      this.current = tracks[Math.floor(Math.random() * tracks.length)];
+    } else {
+      this.current = null;
+      return;
+    }
+
+    this._playResource(this.current, settings, interaction);
+  }
+
+  _playResource(track, settings, interaction) {
+    const resource = createAudioResource(track.url, { inlineVolume: true });
     resource.volume.setVolume(settings.volume / 100);
     this.currentResource = resource;
 
@@ -69,9 +98,9 @@ class MusicQueue {
     }
   }
 
-  // 🎚️ 音量を動的に変更（/music-settingから呼ぶ用）
+  // 🎚️ 再生中に音量を変更
   setVolume(guildId, volume) {
-    if (this.currentResource && this.currentResource.volume) {
+    if (this.currentResource?.volume) {
       this.currentResource.volume.setVolume(volume / 100);
     }
   }
@@ -86,6 +115,8 @@ class MusicQueue {
     this.player.stop();
     if (this.connection) this.connection.destroy();
     this.connection = null;
+    this.current = null;
+    this.currentResource = null;
     interaction.reply({ content: '⏹️ 再生を停止しました！' });
   }
 
@@ -106,7 +137,9 @@ class MusicQueue {
         .map((track, i) => `${i + 1}. \`${track.title}\` by *${track.artist}*`)
         .join('\n');
     } else {
-      desc += '_次の曲はランダム再生されます…_';
+      desc += settings?.autoplay
+        ? '_次の曲はランダム再生されます…_'
+        : '_次の曲はありません_';
     }
 
     return new EmbedBuilder()
