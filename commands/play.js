@@ -1,23 +1,29 @@
-const { SlashCommandBuilder, EmbedBuilder, StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
-const fs = require('fs');
-const musicQueue = require('../../utils/musicQueue');
+import {
+  SlashCommandBuilder,
+  EmbedBuilder,
+  StringSelectMenuBuilder,
+  ActionRowBuilder,
+} from 'discord.js';
+import fs from 'fs';
+import musicQueue from '../utils/musicQueue.js';
 
 const tracks = JSON.parse(fs.readFileSync('./tracks.json', 'utf-8'));
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('play')
     .setDescription('曲を再生します')
     .addStringOption(option =>
       option.setName('query')
         .setDescription('曲名またはアーティスト名')
-        .setRequired(true)
+        .setRequired(true),
     ),
 
   async execute(interaction) {
     const query = interaction.options.getString('query').toLowerCase();
     const results = tracks.filter(t =>
-      t.title.toLowerCase().includes(query) || t.artist.toLowerCase().includes(query)
+      t.title.toLowerCase().includes(query) ||
+      t.artist.toLowerCase().includes(query),
     );
 
     if (results.length === 0) {
@@ -33,11 +39,13 @@ module.exports = {
     if (results.length === 1) {
       musicQueue.join(voiceChannel);
       musicQueue.add(results[0], interaction);
-      return interaction.reply({ embeds: [new EmbedBuilder()
-        .setTitle('✅ 曲を追加しました')
-        .setDescription(`\`\`\`\n${results[0].title}\nby ${results[0].artist}\n\`\`\``)
-        .setColor(0x1DB954)
-      ] });
+
+      return interaction.reply({
+        embeds: [new EmbedBuilder()
+          .setTitle('✅ 曲を追加しました')
+          .setDescription(`\`\`\`\n${results[0].title}\nby ${results[0].artist}\n\`\`\``)
+          .setColor(0x1DB954)],
+      });
     }
 
     // 複数候補 → 選択メニュー
@@ -51,7 +59,7 @@ module.exports = {
       new StringSelectMenuBuilder()
         .setCustomId('select-track')
         .setPlaceholder('曲を選んでください')
-        .addOptions(options)
+        .addOptions(options),
     );
 
     const embed = new EmbedBuilder()
@@ -61,7 +69,6 @@ module.exports = {
 
     const reply = await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
 
-    // 選択イベント
     const collector = reply.createMessageComponentCollector({ time: 15000 });
 
     collector.on('collect', i => {
@@ -69,7 +76,12 @@ module.exports = {
         const selected = results[parseInt(i.values[0])];
         musicQueue.join(voiceChannel);
         musicQueue.add(selected, interaction);
-        i.update({ content: `🎶 ${selected.title} を再生リストに追加しました！`, components: [], embeds: [] });
+
+        i.update({
+          content: `🎶 ${selected.title} を再生リストに追加しました！`,
+          components: [],
+          embeds: [],
+        });
         collector.stop();
       }
     });
