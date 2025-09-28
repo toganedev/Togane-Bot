@@ -8,5 +8,6 @@ export default {
 
   async execute(interaction) {
     musicQueue.skip(interaction);
+    await interaction.reply({ content: '⏭️ 曲をスキップしました！' });
   },
 };
