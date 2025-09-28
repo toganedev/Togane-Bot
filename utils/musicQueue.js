@@ -1,3 +1,4 @@
+// utils/musicQueue.js
 import {
   createAudioPlayer,
   createAudioResource,
@@ -12,7 +13,7 @@ const tracks = JSON.parse(fs.readFileSync('./tracks.json', 'utf-8'));
 
 const defaultSettings = {
   volume: 100,
-  repeat: 'off',   // off | one | all
+  repeat: 'off',
   shuffle: false,
   autoplay: true,
 };
@@ -50,13 +51,10 @@ class MusicQueue {
 
   playNext(interaction) {
     const guildId = interaction?.guild?.id;
-
-    // ✅ 必ずデフォルト設定で補う
     const settings = guildId
       ? { ...defaultSettings, ...(musicSettings.get(guildId) || {}) }
       : defaultSettings;
 
-    // 🎵 リピート処理
     if (settings.repeat === 'one' && this.current) {
       this._playResource(this.current, settings, interaction);
       return;
@@ -66,13 +64,11 @@ class MusicQueue {
       this.queue.push(this.current);
     }
 
-    // 🔀 シャッフル対応
     if (settings.shuffle && this.queue.length > 1) {
       const rand = Math.floor(Math.random() * this.queue.length);
       [this.queue[0], this.queue[rand]] = [this.queue[rand], this.queue[0]];
     }
 
-    // 次の曲を取得
     if (this.queue.length > 0) {
       this.current = this.queue.shift();
     } else if (settings.autoplay) {
@@ -100,7 +96,6 @@ class MusicQueue {
     }
   }
 
-  // 🎚️ 再生中に音量を変更
   setVolume(guildId, volume) {
     if (this.currentResource?.volume) {
       this.currentResource.volume.setVolume(volume / 100);
@@ -108,18 +103,16 @@ class MusicQueue {
   }
 
   skip(interaction) {
-    interaction.reply({ content: '⏭️ 曲をスキップしました！' });
     this.playNext(interaction);
   }
 
-  stop(interaction) {
+  stop() {
     this.queue = [];
     this.player.stop();
     if (this.connection) this.connection.destroy();
     this.connection = null;
     this.current = null;
     this.currentResource = null;
-    interaction.reply({ content: '⏹️ 再生を停止しました！' });
   }
 
   getQueueEmbed(interaction) {
