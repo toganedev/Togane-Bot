@@ -1,4 +1,3 @@
-// utils/musicQueue.js
 import {
   createAudioPlayer,
   createAudioResource,
@@ -10,6 +9,13 @@ import fs from 'fs';
 import { musicSettings } from '../commands/music-setting.js';
 
 const tracks = JSON.parse(fs.readFileSync('./tracks.json', 'utf-8'));
+
+const defaultSettings = {
+  volume: 100,
+  repeat: 'off',   // off | one | all
+  shuffle: false,
+  autoplay: true,
+};
 
 class MusicQueue {
   constructor() {
@@ -44,22 +50,19 @@ class MusicQueue {
 
   playNext(interaction) {
     const guildId = interaction?.guild?.id;
-    const settings = guildId ? musicSettings.get(guildId) : {
-      volume: 100,
-      repeat: 'off',
-      shuffle: false,
-      autoplay: true,
-    };
+
+    // ✅ 必ずデフォルト設定で補う
+    const settings = guildId
+      ? { ...defaultSettings, ...(musicSettings.get(guildId) || {}) }
+      : defaultSettings;
 
     // 🎵 リピート処理
     if (settings.repeat === 'one' && this.current) {
-      // 同じ曲をもう一度再生
       this._playResource(this.current, settings, interaction);
       return;
     }
 
     if (settings.repeat === 'all' && this.current) {
-      // 前の曲を末尾に戻す
       this.queue.push(this.current);
     }
 
@@ -73,7 +76,6 @@ class MusicQueue {
     if (this.queue.length > 0) {
       this.current = this.queue.shift();
     } else if (settings.autoplay) {
-      // キューが空 → ランダム再生
       this.current = tracks[Math.floor(Math.random() * tracks.length)];
     } else {
       this.current = null;
@@ -120,7 +122,12 @@ class MusicQueue {
     interaction.reply({ content: '⏹️ 再生を停止しました！' });
   }
 
-  getQueueEmbed() {
+  getQueueEmbed(interaction) {
+    const guildId = interaction?.guild?.id;
+    const settings = guildId
+      ? { ...defaultSettings, ...(musicSettings.get(guildId) || {}) }
+      : defaultSettings;
+
     if (!this.current && this.queue.length === 0) {
       return new EmbedBuilder()
         .setTitle('📂 キューは空です')
@@ -137,7 +144,7 @@ class MusicQueue {
         .map((track, i) => `${i + 1}. \`${track.title}\` by *${track.artist}*`)
         .join('\n');
     } else {
-      desc += settings?.autoplay
+      desc += settings.autoplay
         ? '_次の曲はランダム再生されます…_'
         : '_次の曲はありません_';
     }
