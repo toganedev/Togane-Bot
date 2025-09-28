@@ -7,6 +7,7 @@ export default {
     .setDescription('音楽を停止し、キューをクリアします'),
 
   async execute(interaction) {
-    musicQueue.stop(interaction);
+    musicQueue.stop();
+    await interaction.reply({ content: '⏹️ 再生を停止しました！' });
   },
 };
