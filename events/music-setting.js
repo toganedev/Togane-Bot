@@ -6,12 +6,24 @@ import {
 import { musicSettings } from '../commands/music-setting.js';
 import musicQueue from '../utils/musicQueue.js';
 
+const defaultSettings = {
+  volume: 100,
+  repeat: 'off',   // off | one | all
+  shuffle: false,
+  autoplay: true,
+};
+
 export default {
   name: Events.InteractionCreate,
   async execute(interaction) {
     if (!interaction.isStringSelectMenu()) return;
 
     const guildId = interaction.guild.id;
+
+    // ✅ デフォルト設定で初期化（必ず存在するようにする）
+    if (!musicSettings.has(guildId)) {
+      musicSettings.set(guildId, { ...defaultSettings });
+    }
     const settings = musicSettings.get(guildId);
 
     // 🎚️ メインメニューの操作
@@ -55,6 +67,18 @@ export default {
 
       musicSettings.set(guildId, settings);
 
+      // 新しいメインメニューを作り直す
+      const mainMenu = new StringSelectMenuBuilder()
+        .setCustomId('music-setting-menu')
+        .setPlaceholder('設定を選択してください')
+        .addOptions([
+          { label: '音量を変更', value: 'volume', description: '音量を調整します' },
+          { label: 'リピートモード切替', value: 'repeat', description: 'リピートON/OFFを切り替えます' },
+          { label: 'シャッフル切替', value: 'shuffle', description: 'シャッフルON/OFFを切り替えます' },
+          { label: 'オートプレイ切替', value: 'autoplay', description: '自動ランダム再生ON/OFF' },
+        ]);
+      const row = new ActionRowBuilder().addComponents(mainMenu);
+
       return interaction.update({
         embeds: [{
           title: '🎛 音楽設定 (更新)',
@@ -65,7 +89,7 @@ export default {
             `🎶 オートプレイ: **${settings.autoplay ? 'ON' : 'OFF'}**\n`,
           color: 0x2ECC71,
         }],
-        components: interaction.message.components,
+        components: [row],
       });
     }
 
