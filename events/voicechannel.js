@@ -7,13 +7,13 @@ export default {
     const logChannelId = '1366903011619635323';
     const notifyRoleId = '1422216820441747499';
 
-    // 対象サーバー以外なら無視
+    // 対象サーバー以外は無視
     if (newState.guild.id !== guildId) return;
 
     const logChannel = newState.guild.channels.cache.get(logChannelId);
     if (!logChannel) return;
 
-    // ユーザーが参加した場合
+    // ✅ ユーザーがボイスチャンネルに参加した場合
     if (!oldState.channelId && newState.channelId) {
       const embed = new EmbedBuilder()
         .setTitle('📥 ボイスチャンネル参加')
@@ -27,7 +27,7 @@ export default {
       });
     }
 
-    // ユーザーが退出した場合
+    // ✅ ユーザーがボイスチャンネルから退出した場合
     if (oldState.channelId && !newState.channelId) {
       const channel = oldState.channel;
       if (!channel) return;
