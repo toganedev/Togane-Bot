@@ -4,7 +4,7 @@ export default {
   name: Events.VoiceStateUpdate,
   async execute(oldState, newState) {
     const guildId = '1366903010940162211';
-    const logChannelId = '1366903011619635323';
+    const logChannelId = '1388132296263073844';
     const notifyRoleId = '1422216820441747499';
 
     if (newState.guild.id !== guildId) return;
